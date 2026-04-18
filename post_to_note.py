@@ -1,117 +1,188 @@
 #!/usr/bin/env python3
 import sys
+import re
+import os
 import traceback
 
 EMAIL    = "na2tomo0603@gmail.com"
 PASSWORD = "ymas0603"
+USER_ID  = "na2tomo0603"
 
-TITLE = "シニア世代がSNS不要でnoteを収益化できる理由"
+TITLE = "シニア世代がSNS不要でnoteを収益化できる理由【副業・在宅ワーク】"
 
 BODY = """\
-「副業を始めたいけど、SNSは難しそう…」「Xやインスタを毎日更新するなんて無理」と感じているシニア世代の方は多いのではないでしょうか。
+「副業を始めたいけど、SNSは難しそう…」
+「XやInstagramを毎日更新するなんて、体力的にも気力的にも無理」
 
-実は、noteはSNSのフォロワーがゼロでも収益化できる唯一に近いプラットフォームです。今回は、その理由と具体的な始め方をお伝えします。
+そう感じているシニア世代の方は多いのではないでしょうか。
 
-なぜnoteはSNS不要なのか
+実は、noteはSNSのフォロワーがゼロでも収益化できる、シニアにとって理想に近いプラットフォームです。今回は「なぜnote一択なのか」をわかりやすくお伝えします。
 
-一般的な副業では「まずSNSでフォロワーを増やして…」という流れが当たり前です。しかしnoteは、記事をnote内の検索やGoogleからの検索で読んでもらえる仕組みになっています。
+## なぜnoteはSNS不要なのか
 
-つまり、毎日投稿しなくても、バズらなくても、フォロワーがいなくても、あなたの記事が誰かの悩みを解決すれば、それがそのまま収益になります。
+一般的な副業では「まずSNSでフォロワーを増やして…」という流れが当たり前です。しかしnoteは違います。
 
-シニア世代こそnoteが向いている理由
+noteに書いた記事は、note内の検索とGoogle検索の両方から読んでもらえます。つまり、毎日投稿しなくても、バズらなくても、フォロワーがゼロでも——あなたの記事が誰かの悩みを解決すれば、それがそのまま収益につながる仕組みです。
 
-人生経験がそのままコンテンツになる
+これがnoteを「働かない働き方」と呼ぶ理由です。一度書いた記事は半永久的にインターネット上に残り、寝ている間も読まれ続けます。
+
+## シニア世代こそnoteが向いている3つの理由
 
 60代・70代の方が持つ「仕事で培ったノウハウ」「子育ての経験」「趣味の深い知識」は、若い世代には絶対に書けない価値ある情報です。
 
-「定年後の手続きで困ったこと」「年金との付き合い方」「50年続けた料理のコツ」―こういった内容こそ、同世代が読みたいと思うコンテンツです。
+「定年後の手続きで困ったこと」「年金との付き合い方」「50年続けた料理のコツ」——こういった内容こそ、同世代の読者が「まさに知りたかった！」と感じるコンテンツです。
 
-更新頻度のプレッシャーがない
+またSNSと違い、noteは週1回でも月1回でも構いません。自分のペースで書けるのは、体力や時間に制約があるシニアにとって大きなメリットです。
 
-SNSと違い、noteは週1回でも月1回でも構いません。一度書いた記事は半永久的にインターネット上に残り、読まれ続けます。まさに「働かない働き方」の仕組みです。
+## noteの収益化　3つの方法
 
-noteの収益化の仕組み
+有料記事の販売では、500円〜の記事に値段をつけて販売できます。手数料は約15%。フォロワーゼロでも、検索で見つけてもらえれば売れます。
 
-noteでの収益化には主に3つの方法があります。
+2024年から始まったAI学習対価還元プログラムでは、無料記事を書くだけでAI企業への学習データとして対価が支払われます。一般ユーザーでも数万円〜の収益を得た事例があります。
 
-① 有料記事の販売
-500円〜の記事を販売します。手数料15%を引いた金額が振り込まれます。フォロワーゼロでも、検索で見つけてもらえれば売れます。
+メンバーシップ（月額サブスク）では、固定のファンができてきたら月額制のコンテンツを提供できます。少人数でも安定収益になります。
 
-② AI学習対価還元プログラム（2024年〜）
-無料記事を書くだけでAI企業への学習データとして対価が支払われる新制度です。一般ユーザーでも数万円〜の収益を得た事例があります。
-
-③ メンバーシップ（月額サブスク）
-固定ファンができたら月額制のコンテンツを提供できます。少人数でも安定収益に。
-
-まず1記事書いてみよう
+## まず1記事、書いてみよう
 
 難しく考える必要はありません。あなたが「当たり前」と思っていることが、誰かにとっては貴重な情報です。
 
-「定年後にやって良かったこと・後悔したこと」「趣味の〇〇を30年続けてわかったこと」「子育てを終えて気づいた、親として伝えたかったこと」
+まずは1000文字、自分の経験を書いてみてください。それが「働かない働き方」への第一歩になります。
 
-こんなテーマで、まず1000文字書いてみてください。SNSの知識もスマートフォンの特別なスキルも不要。パソコンで文字が打てれば、今日から始められます。
+SNSが苦手なシニア世代にとって、noteは最も始めやすく、最も続けやすい収益化の手段です。"""
 
-「難しそう」と思っていたnoteが、実はシニア世代にとって最も始めやすい収益化の手段かもしれません。"""
+TAGS = ["副業", "在宅ワーク", "シニア", "note収益化", "副業初心者", "働かない働き方", "60代副業", "SNS不要"]
+THUMBNAIL = "thumbnail.png"
+
+
+def set_clipboard(text):
+    """クリップボードにテキストをセット（Windows/Mac/Linux対応）"""
+    import subprocess, platform
+    system = platform.system()
+    if system == "Windows":
+        subprocess.run(["clip"], input=text.encode("utf-16"), check=True)
+    elif system == "Darwin":
+        subprocess.run(["pbcopy"], input=text.encode("utf-8"), check=True)
+    else:
+        subprocess.run(["xclip", "-selection", "clipboard"],
+                       input=text.encode("utf-8"), check=True)
+
+
+def type_article(page, body):
+    """見出し・本文を正確に入力（見出しはキー操作、本文はクリップボード貼り付け）"""
+    lines = body.split("\n")
+    i = 0
+    while i < len(lines):
+        line = lines[i]
+
+        if line.startswith("## "):
+            # H2見出し: ## を入力してスペースで変換
+            heading_text = line[3:]
+            page.keyboard.type("## ")
+            page.wait_for_timeout(300)
+            page.keyboard.type(heading_text)
+            page.keyboard.press("Enter")
+            page.wait_for_timeout(300)
+
+        elif line.strip() == "":
+            page.keyboard.press("Enter")
+            page.wait_for_timeout(100)
+
+        else:
+            # 通常段落: クリップボード経由で貼り付け（文字切れ防止）
+            set_clipboard(line)
+            page.keyboard.press("Control+v")
+            page.wait_for_timeout(200)
+            page.keyboard.press("Enter")
+            page.wait_for_timeout(100)
+
+        i += 1
+
+
+def upload_thumbnail(page, thumbnail_path):
+    """カバー画像をアップロード"""
+    if not os.path.exists(thumbnail_path):
+        print("サムネイルファイルが見つかりません:", thumbnail_path)
+        return
+    try:
+        abs_path = os.path.abspath(thumbnail_path)
+        # カバー画像ボタンを探してクリック
+        cover_btn = page.locator("button:has-text('カバー'), button:has-text('画像'), [aria-label*='カバー'], [aria-label*='cover']").first
+        cover_btn.click(timeout=5000)
+        page.wait_for_timeout(1000)
+
+        # ファイル入力
+        with page.expect_file_chooser() as fc_info:
+            page.locator("input[type='file']").first.click()
+        file_chooser = fc_info.value
+        file_chooser.set_files(abs_path)
+        page.wait_for_timeout(2000)
+        print("サムネイルアップロード完了")
+    except Exception as e:
+        print(f"サムネイルアップロードスキップ: {e}")
 
 
 def main():
     from playwright.sync_api import sync_playwright, TimeoutError as PWTimeout
 
     with sync_playwright() as p:
-        print("Starting browser...")
-        browser = p.chromium.launch(headless=False)  # headless=False で画面表示
+        print("ブラウザ起動中...")
+        browser = p.chromium.launch(headless=False)
         page = browser.new_page()
 
         # ログイン
-        print("Opening note.com login page...")
+        print("ログイン中...")
         page.goto("https://note.com/login", wait_until="domcontentloaded")
         page.wait_for_timeout(2000)
-
-        print("Filling in credentials...")
-        page.fill("input[type='email'], input[id='email'], input[name='email']", EMAIL)
-        page.wait_for_timeout(500)
+        page.fill("input[type='email'], input[id='email']", EMAIL)
+        page.wait_for_timeout(300)
         page.fill("input[type='password']", PASSWORD)
-        page.wait_for_timeout(500)
-
-        print("Clicking login button...")
+        page.wait_for_timeout(300)
         page.click("button[type='submit'], button:has-text('ログイン')")
         page.wait_for_load_state("domcontentloaded")
         page.wait_for_timeout(3000)
-        print(f"Logged in. URL: {page.url}")
+        print("ログイン完了:", page.url)
 
-        # 新規記事作成ページへ
-        print("Opening new article page...")
+        # 記事作成ページ
+        print("記事作成ページへ移動...")
         page.goto("https://note.com/notes/new", wait_until="domcontentloaded")
         page.wait_for_timeout(3000)
 
         # タイトル入力
-        print("Entering title...")
+        print("タイトル入力中...")
         title_sel = "textarea, input[placeholder*='タイトル'], [data-placeholder*='タイトル']"
         page.wait_for_selector(title_sel, timeout=10000)
         page.click(title_sel)
-        page.keyboard.type(TITLE)
+        set_clipboard(TITLE)
+        page.keyboard.press("Control+v")
         page.wait_for_timeout(500)
 
-        # 本文入力
-        print("Entering body...")
+        # 本文エリアへ移動
         page.keyboard.press("Tab")
         page.wait_for_timeout(500)
-        page.keyboard.type(BODY)
+
+        # 本文入力（見出し対応＋クリップボード貼り付け）
+        print("本文入力中...")
+        type_article(page, BODY)
         page.wait_for_timeout(1000)
 
+        # サムネイルアップロード
+        print("サムネイルアップロード中...")
+        upload_thumbnail(page, THUMBNAIL)
+
         # 下書き保存
-        print("Saving draft...")
+        print("下書き保存中...")
         try:
-            page.click("button:has-text('下書き保存'), button:has-text('保存')", timeout=5000)
+            page.click("button:has-text('下書き保存')", timeout=5000)
         except PWTimeout:
-            # キーボードショートカットで保存を試みる
-            page.keyboard.press("Control+s")
+            try:
+                page.click("button:has-text('保存')", timeout=3000)
+            except PWTimeout:
+                page.keyboard.press("Control+s")
         page.wait_for_timeout(3000)
 
         print()
-        print("SUCCESS! Draft saved.")
-        print(f"Current URL: {page.url}")
-
+        print("完了！下書き保存しました")
+        print(f"URL: {page.url}")
         browser.close()
 
 
@@ -123,5 +194,5 @@ if __name__ == "__main__":
         print("ERROR:", msg)
         with open("error.log", "w", encoding="utf-8") as f:
             f.write(msg)
-        print("Saved to error.log")
-    input("Press Enter to exit...")
+        print("error.log に保存しました")
+    input("Enterキーで終了...")
