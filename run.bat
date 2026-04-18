@@ -6,7 +6,7 @@ echo.
 
 echo Installing packages...
 py -m pip install playwright pillow youtube-transcript-api requests -q
-py -m playwright install chromium --quiet
+py -m playwright install chromium
 echo Done.
 echo.
 
