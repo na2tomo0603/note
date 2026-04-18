@@ -33,7 +33,7 @@ def type_article(page, body):
         if line.startswith("## "):
             page.keyboard.type("## ")
             page.wait_for_timeout(200)
-            page.keyboard.insertText(line[3:])
+            page.keyboard.insert_text(line[3:])
             page.keyboard.press("Enter")
             page.wait_for_timeout(300)
 
@@ -46,7 +46,7 @@ def type_article(page, body):
             while i < len(lines) and lines[i].strip() != "" and not lines[i].startswith("## "):
                 para_lines.append(lines[i])
                 i += 1
-            page.keyboard.insertText("\n".join(para_lines))
+            page.keyboard.insert_text("\n".join(para_lines))
             page.keyboard.press("Enter")
             page.keyboard.press("Enter")
             page.wait_for_timeout(300)
