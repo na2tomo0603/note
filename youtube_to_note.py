@@ -75,7 +75,7 @@ def format_article_with_claude(raw_text, video_title):
     api_key = os.environ.get("ANTHROPIC_API_KEY")
     if not api_key:
         print("ANTHROPIC_API_KEY未設定 → 基本整形のみ実施")
-        return basic_format(raw_text, video_title), video_title
+        return basic_format(raw_text, video_title)
 
     import anthropic
     client = anthropic.Anthropic(api_key=api_key)
