@@ -13,7 +13,7 @@ echo.
 set /p URL="Paste YouTube URL and press Enter: "
 echo.
 
-echo Step 1: Fetching transcript and generating article...
+echo Step 1: Fetching transcript...
 py youtube_to_note.py "%URL%"
 if errorlevel 1 goto error
 
@@ -27,7 +27,6 @@ echo Done!
 goto end
 
 :error
-echo.
 echo Error occurred.
 if exist error.log type error.log
 
