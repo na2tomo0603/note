@@ -1,26 +1,11 @@
 #!/usr/bin/env python3
-"""
-note.com 下書き自動投稿スクリプト
-参考: https://note.com/hirosuke_0520/n/n8ed734a89ee6
-
-【使い方】
-1. pip install noteclient
-2. python3 post_to_note.py
-
-【必要環境】
-- Firefox がインストールされていること
-- geckodriver が PATH に入っていること
-  - Mac: brew install geckodriver
-  - Windows: https://github.com/mozilla/geckodriver/releases
-"""
-
 import sys
 import traceback
-from note_client.note_client import Note
+import requests
 
 EMAIL    = "na2tomo0603@gmail.com"
 PASSWORD = "ymas0603"
-USER_ID  = "na2tomo0603"   # note.com のユーザーID (URLの /ユーザーID/ 部分)
+USER_ID  = "na2tomo0603"
 
 TITLE = "AIと共に働く時代へ――Claude Codeを使ってみた"
 
@@ -41,48 +26,59 @@ BODY = """\
 
 ## まとめ
 
-Claude Codeは「AIがコードを書く」ツールではなく、「人間とAIが協働する」ための道具だと思う。うまく活用することで、開発のスピードと品質を同時に上げられる可能性がある。まだ試したことがない方は、ぜひ一度体験してみてほしい。\
-"""
-
-TAGS = ["AI", "ClaudeCode", "生成AI", "プログラミング"]
+Claude Codeは「AIがコードを書く」ツールではなく、「人間とAIが協働する」ための道具だと思う。うまく活用することで、開発のスピードと品質を同時に上げられる可能性がある。まだ試したことがない方は、ぜひ一度体験してみてほしい。"""
 
 
 def main():
-    print("note.com へ下書き投稿を開始します...")
-    print(f"  タイトル: {TITLE}")
-    print(f"  ユーザー: {USER_ID}")
-    print()
+    session = requests.Session()
+    session.headers.update({
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+        "Content-Type": "application/json",
+        "Referer": "https://note.com/",
+        "Origin": "https://note.com",
+    })
 
-    note = Note(email=EMAIL, password=PASSWORD, user_id=USER_ID)
-
-    result = note.create_article(
-        title=TITLE,
-        input_tag_list=TAGS,
-        image_index=None,   # サムネイル画像なし
-        post_setting=False, # False=下書き保存 / True=公開
-        text=BODY,
-        headless=True,      # ブラウザを非表示で実行
+    print("Logging in to note.com...")
+    res = session.post(
+        "https://note.com/api/v1/sessions",
+        json={"login": EMAIL, "password": PASSWORD},
     )
+    print(f"Login status: {res.status_code}")
+    if res.status_code not in (200, 201):
+        print("Login failed:", res.text[:300])
+        sys.exit(1)
 
-    if result.get("run") == "success":
-        print("✅ 下書き保存に成功しました！")
-        print(f"  設定: {result.get('post_setting')}")
-        print(f"  タグ: {result.get('tag_list')}")
-        if result.get("post_url"):
-            print(f"  URL: {result.get('post_url')}")
+    data = res.json().get("data", {})
+    token = data.get("token")
+    if token:
+        session.headers["X-Note-Token"] = token
+    print("Login OK")
+
+    print("Creating draft...")
+    res2 = session.post(
+        "https://note.com/api/v1/text_notes",
+        json={"name": TITLE, "body": BODY, "status": "draft"},
+    )
+    print(f"Draft status: {res2.status_code}")
+    print(res2.text[:500])
+
+    if res2.status_code in (200, 201):
+        note_key = res2.json().get("data", {}).get("key", "")
+        print()
+        print("SUCCESS! Draft saved.")
+        print(f"URL: https://note.com/{USER_ID}/n/{note_key}")
     else:
-        print("❌ 投稿に失敗しました")
-        print(result)
+        print("Draft creation failed.")
         sys.exit(1)
 
 
 if __name__ == "__main__":
     try:
         main()
-    except Exception as e:
+    except Exception:
         msg = traceback.format_exc()
         print("ERROR:", msg)
         with open("error.log", "w", encoding="utf-8") as f:
             f.write(msg)
-        print("error.log に保存しました。そのファイルの中身を教えてください。")
-    input("Enterキーを押して終了...")
+        print("Saved to error.log")
+    input("Press Enter to exit...")
