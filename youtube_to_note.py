@@ -100,9 +100,49 @@ def format_article_with_claude(raw_text, video_title):
 
 
 def basic_format(raw_text, video_title):
-    text = re.sub(r"\s+", " ", raw_text).strip()
-    text = text.replace("。", "。\n\n")
-    return text
+    """APIキーなしでも読みやすい記事に整形する"""
+    import re
+
+    # 重複フレーズ・フィラーを除去
+    text = re.sub(r'\[.*?\]', '', raw_text)
+    text = re.sub(r'(えー+|あの+|まあ+|ちょっと|なんか|そう+ですね)', '', text)
+    text = re.sub(r'\s+', ' ', text).strip()
+
+    # 句点で分割して文のリストに
+    sentences = [s.strip() for s in re.split(r'[。！？]', text) if len(s.strip()) > 10]
+
+    # 1500文字程度に収める
+    body_sentences = []
+    total = 0
+    for s in sentences:
+        if total + len(s) > 1400:
+            break
+        body_sentences.append(s + '。')
+        total += len(s)
+
+    # 5〜6文ごとに段落分け
+    paragraphs = []
+    chunk = []
+    for i, s in enumerate(body_sentences):
+        chunk.append(s)
+        if (i + 1) % 5 == 0:
+            paragraphs.append(''.join(chunk))
+            chunk = []
+    if chunk:
+        paragraphs.append(''.join(chunk))
+
+    # タイトルから見出しキーワードを抽出
+    tags_from_title = re.findall(r'【(.+?)】', video_title)
+
+    # 記事本文を組み立て
+    article = ""
+    section_titles = ["動画の概要", "ポイント解説", "まとめ"]
+    for i, para in enumerate(paragraphs[:3]):
+        if i < len(section_titles):
+            article += f"\n## {section_titles[i]}\n\n"
+        article += para + "\n\n"
+
+    return article.strip(), video_title, " ".join(tags_from_title[:6]) if tags_from_title else ""
 
 
 def make_thumbnail(title_text):
@@ -187,10 +227,7 @@ def main():
 
     print("\n▼ 記事整形中...")
     result = format_article_with_claude(raw_text, video_title)
-    if len(result) == 3:
-        body, title, tags = result
-    else:
-        body, title, tags = result[0], video_title, ""
+    body, title, tags = (result if len(result) == 3 else (result[0], video_title, ""))
 
     print("\n▼ サムネイル生成中...")
     make_thumbnail(title)
