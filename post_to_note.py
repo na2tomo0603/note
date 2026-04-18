@@ -176,10 +176,7 @@ def main():
         print("タイトル入力中...")
         title_sel = "textarea, input[placeholder*='タイトル'], [data-placeholder*='タイトル']"
         page.wait_for_selector(title_sel, timeout=10000)
-        page.click(title_sel)
-        page.wait_for_timeout(300)
-        set_clipboard(TITLE)
-        page.keyboard.press("Control+v")
+        page.fill(title_sel, TITLE)
         page.wait_for_timeout(800)
 
         # 本文エリアへ移動
