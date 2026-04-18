@@ -27,6 +27,13 @@ def get_video_id(url):
 
 
 def get_transcript(video_id):
+    if os.path.exists("transcript.txt"):
+        with open("transcript.txt", "r", encoding="utf-8") as f:
+            text = f.read().strip()
+        if text:
+            print(f"既存のtranscript.txtを使用: {len(text)}文字")
+            return text
+
     from youtube_transcript_api import YouTubeTranscriptApi
     api = YouTubeTranscriptApi()
     for lang in ["ja", "en"]:
@@ -47,13 +54,21 @@ def get_video_title(video_id):
     """動画タイトルを取得（取得できない場合はIDを返す）"""
     try:
         import urllib.request
+        import json
         url = f"https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v={video_id}&format=json"
         with urllib.request.urlopen(url, timeout=5) as r:
-            import json
             data = json.loads(r.read())
             return data.get("title", video_id)
     except Exception:
-        return video_id
+        pass
+
+    # transcript.txt の1行目からタイトルを推測
+    if os.path.exists("transcript.txt"):
+        with open("transcript.txt", "r", encoding="utf-8") as f:
+            first_line = f.readline().strip()
+        if first_line:
+            return first_line[:40]
+    return video_id
 
 
 def format_article_with_claude(raw_text, video_title):
@@ -71,18 +86,25 @@ def format_article_with_claude(raw_text, video_title):
         max_tokens=8192,
         messages=[{
             "role": "user",
-            "content": f"""以下はYouTube動画「{video_title}」の文字起こしです。
-これをnote.comに投稿する質の高いブログ記事に整形してください。
+            "content": f"""以下は動画の文字起こしです。これを元に、**動画から書いたとわからない**プロのブログ記事を書いてください。
+
+【絶対に守るルール】
+- 「動画では」「この動画で」「話している」などの動画を示す表現は一切使わない
+- 話し言葉・フィラー（えー、あの、まあ など）を完全に除去
+- 読者に語りかける書き言葉スタイルで書く
+- 手順・方法がある場合は必ず番号付きリスト（1. 2. 3.）で整理する
+- 各セクションを充実させ、読んだだけで実践できるレベルまで掘り下げる
+- 文字数制限なし（内容が伝わるまで書く）
 
 出力形式（必ずこの形式で）:
 ===TITLE===
-（note記事のタイトル：30文字以内）
+（記事タイトル：読者が思わずクリックしたくなる30文字以内）
 ===TAGS===
 （タグをカンマ区切りで5〜8個）
 ===BODY===
-（本文：5000文字程度、見出し##を5〜8個使って構造化、話し言葉→書き言葉、各セクションを充実させること）
+（本文：見出し##を6〜10個使って構造化、各セクションに具体的な説明・手順・ポイントを充実させること）
 
-文字起こし:
+動画の文字起こし:
 {raw_text[:12000]}"""
         }]
     )
