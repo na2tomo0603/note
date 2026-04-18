@@ -4,6 +4,10 @@ cd /d "%~dp0"
 echo === YouTube to note ===
 echo.
 
+echo Updating to latest version...
+git pull origin HEAD 2>nul
+echo.
+
 echo Installing packages...
 py -m pip install playwright pillow youtube-transcript-api requests -q
 py -m playwright install chromium
