@@ -55,30 +55,21 @@ THUMBNAIL = "thumbnail.png"
 
 
 def set_clipboard(text):
-    """クリップボードにテキストをセット（Windows/Mac/Linux対応）"""
-    import subprocess, platform
-    system = platform.system()
-    if system == "Windows":
-        subprocess.run(["clip"], input=text.encode("utf-16"), check=True)
-    elif system == "Darwin":
-        subprocess.run(["pbcopy"], input=text.encode("utf-8"), check=True)
-    else:
-        subprocess.run(["xclip", "-selection", "clipboard"],
-                       input=text.encode("utf-8"), check=True)
+    import pyperclip
+    pyperclip.copy(text)
 
 
 def type_article(page, body):
-    """見出し・本文を正確に入力（見出しはキー操作、本文はクリップボード貼り付け）"""
+    """見出し・本文を入力。見出しはキー操作、段落はクリップボード一括貼り付け"""
     lines = body.split("\n")
     i = 0
     while i < len(lines):
         line = lines[i]
 
         if line.startswith("## "):
-            # H2見出し: ## を入力してスペースで変換
             heading_text = line[3:]
             page.keyboard.type("## ")
-            page.wait_for_timeout(300)
+            page.wait_for_timeout(200)
             page.keyboard.type(heading_text)
             page.keyboard.press("Enter")
             page.wait_for_timeout(300)
@@ -88,12 +79,18 @@ def type_article(page, body):
             page.wait_for_timeout(100)
 
         else:
-            # 通常段落: クリップボード経由で貼り付け（文字切れ防止）
-            set_clipboard(line)
+            # 段落をまとめて収集して一括貼り付け
+            para_lines = []
+            while i < len(lines) and lines[i].strip() != "" and not lines[i].startswith("## "):
+                para_lines.append(lines[i])
+                i += 1
+            para = "\n".join(para_lines)
+            set_clipboard(para)
             page.keyboard.press("Control+v")
-            page.wait_for_timeout(200)
+            page.wait_for_timeout(400)
             page.keyboard.press("Enter")
-            page.wait_for_timeout(100)
+            page.wait_for_timeout(200)
+            continue
 
         i += 1
 
@@ -101,24 +98,33 @@ def type_article(page, body):
 def upload_thumbnail(page, thumbnail_path):
     """カバー画像をアップロード"""
     if not os.path.exists(thumbnail_path):
-        print("サムネイルファイルが見つかりません:", thumbnail_path)
+        print("thumbnail.png が見つかりません。スキップします")
         return
     try:
         abs_path = os.path.abspath(thumbnail_path)
-        # カバー画像ボタンを探してクリック
-        cover_btn = page.locator("button:has-text('カバー'), button:has-text('画像'), [aria-label*='カバー'], [aria-label*='cover']").first
-        cover_btn.click(timeout=5000)
-        page.wait_for_timeout(1000)
 
-        # ファイル入力
-        with page.expect_file_chooser() as fc_info:
-            page.locator("input[type='file']").first.click()
-        file_chooser = fc_info.value
-        file_chooser.set_files(abs_path)
-        page.wait_for_timeout(2000)
+        # ファイル選択ダイアログをfile_chooserで捕捉して直接セット
+        with page.expect_file_chooser(timeout=8000) as fc_info:
+            # note.comのカバー画像ボタン（複数セレクタを試す）
+            for sel in [
+                "button:has-text('カバー画像')",
+                "button:has-text('画像を追加')",
+                "[data-type='cover'] button",
+                "label:has-text('カバー')",
+                "input[type='file']",
+            ]:
+                try:
+                    page.click(sel, timeout=3000)
+                    break
+                except Exception:
+                    continue
+
+        fc_info.value.set_files(abs_path)
+        page.wait_for_timeout(3000)
         print("サムネイルアップロード完了")
     except Exception as e:
-        print(f"サムネイルアップロードスキップ: {e}")
+        print(f"サムネイル自動アップロード失敗: {e}")
+        print("→ note.com画面で手動でカバー画像を設定してください")
 
 
 def main():
@@ -152,9 +158,10 @@ def main():
         title_sel = "textarea, input[placeholder*='タイトル'], [data-placeholder*='タイトル']"
         page.wait_for_selector(title_sel, timeout=10000)
         page.click(title_sel)
+        page.wait_for_timeout(300)
         set_clipboard(TITLE)
         page.keyboard.press("Control+v")
-        page.wait_for_timeout(500)
+        page.wait_for_timeout(800)
 
         # 本文エリアへ移動
         page.keyboard.press("Tab")
