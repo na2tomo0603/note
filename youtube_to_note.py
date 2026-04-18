@@ -27,6 +27,13 @@ def get_video_id(url):
 
 
 def get_transcript(video_id):
+    if os.path.exists("transcript.txt"):
+        with open("transcript.txt", "r", encoding="utf-8") as f:
+            text = f.read().strip()
+        if text:
+            print(f"既存のtranscript.txtを使用: {len(text)}文字")
+            return text
+
     from youtube_transcript_api import YouTubeTranscriptApi
     api = YouTubeTranscriptApi()
     for lang in ["ja", "en"]:
@@ -47,13 +54,21 @@ def get_video_title(video_id):
     """動画タイトルを取得（取得できない場合はIDを返す）"""
     try:
         import urllib.request
+        import json
         url = f"https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v={video_id}&format=json"
         with urllib.request.urlopen(url, timeout=5) as r:
-            import json
             data = json.loads(r.read())
             return data.get("title", video_id)
     except Exception:
-        return video_id
+        pass
+
+    # transcript.txt の1行目からタイトルを推測
+    if os.path.exists("transcript.txt"):
+        with open("transcript.txt", "r", encoding="utf-8") as f:
+            first_line = f.readline().strip()
+        if first_line:
+            return first_line[:40]
+    return video_id
 
 
 def format_article_with_claude(raw_text, video_title):
