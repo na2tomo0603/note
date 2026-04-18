@@ -13,4 +13,8 @@ echo Running post_to_note.py ...
 python post_to_note.py
 
 echo.
+if exist error.log (
+    echo --- error.log ---
+    type error.log
+)
 pause

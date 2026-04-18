@@ -15,6 +15,7 @@ note.com 下書き自動投稿スクリプト
 """
 
 import sys
+import traceback
 from note_client.note_client import Note
 
 EMAIL    = "na2tomo0603@gmail.com"
@@ -76,4 +77,12 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except Exception as e:
+        msg = traceback.format_exc()
+        print("ERROR:", msg)
+        with open("error.log", "w", encoding="utf-8") as f:
+            f.write(msg)
+        print("error.log に保存しました。そのファイルの中身を教えてください。")
+    input("Enterキーを押して終了...")
