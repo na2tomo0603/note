@@ -54,27 +54,18 @@ TAGS = ["副業", "在宅ワーク", "シニア", "note収益化", "副業初心
 THUMBNAIL = "thumbnail.png"
 
 
-def insert_text(page, text):
-    """JavaScript execCommand でエディタに直接テキスト挿入（長さ制限なし）"""
-    # 改行を含むテキストを安全に渡すためJSONエンコード
-    import json
-    js = f"document.execCommand('insertText', false, {json.dumps(text)})"
-    page.evaluate(js)
-    page.wait_for_timeout(100)
-
-
 def type_article(page, body):
-    """見出し・本文を入力。見出しはキー操作、段落はexecCommandで直接挿入"""
+    """見出し・本文を入力。keyboard.insertText()でProseMirrorに確実挿入"""
     lines = body.split("\n")
     i = 0
     while i < len(lines):
         line = lines[i]
 
         if line.startswith("## "):
-            # H2見出し: ## + スペース でnote.comが自動変換
+            # H2見出し
             page.keyboard.type("## ")
             page.wait_for_timeout(200)
-            insert_text(page, line[3:])
+            page.keyboard.insertText(line[3:])
             page.keyboard.press("Enter")
             page.wait_for_timeout(300)
 
@@ -83,15 +74,15 @@ def type_article(page, body):
             page.wait_for_timeout(100)
 
         else:
-            # 段落をまとめてexecCommandで一括挿入
+            # 段落をまとめてinsertTextで一括挿入
             para_lines = []
             while i < len(lines) and lines[i].strip() != "" and not lines[i].startswith("## "):
                 para_lines.append(lines[i])
                 i += 1
-            insert_text(page, "\n".join(para_lines))
+            page.keyboard.insertText("\n".join(para_lines))
             page.keyboard.press("Enter")
             page.keyboard.press("Enter")
-            page.wait_for_timeout(200)
+            page.wait_for_timeout(300)
             continue
 
         i += 1
