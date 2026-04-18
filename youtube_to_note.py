@@ -83,7 +83,7 @@ def format_article_with_claude(raw_text, video_title):
 
     message = client.messages.create(
         model="claude-sonnet-4-6",
-        max_tokens=4096,
+        max_tokens=8192,
         messages=[{
             "role": "user",
             "content": f"""以下はYouTube動画「{video_title}」の文字起こしです。
@@ -95,10 +95,10 @@ def format_article_with_claude(raw_text, video_title):
 ===TAGS===
 （タグをカンマ区切りで5〜8個）
 ===BODY===
-（本文：1000〜1500文字、見出し##を使って構造化、話し言葉→書き言葉）
+（本文：5000文字程度、見出し##を5〜8個使って構造化、話し言葉→書き言葉、各セクションを充実させること）
 
 文字起こし:
-{raw_text[:8000]}"""
+{raw_text[:12000]}"""
         }]
     )
 
@@ -126,11 +126,11 @@ def basic_format(raw_text, video_title):
     # 句点で分割して文のリストに
     sentences = [s.strip() for s in re.split(r'[。！？]', text) if len(s.strip()) > 10]
 
-    # 1500文字程度に収める
+    # 5000文字程度に収める
     body_sentences = []
     total = 0
     for s in sentences:
-        if total + len(s) > 1400:
+        if total + len(s) > 5000:
             break
         body_sentences.append(s + '。')
         total += len(s)
@@ -150,9 +150,9 @@ def basic_format(raw_text, video_title):
     tags_from_title = re.findall(r'【(.+?)】', video_title)
 
     # 記事本文を組み立て
+    section_titles = ["はじめに", "動画の概要", "ポイント解説①", "ポイント解説②", "ポイント解説③", "実践方法", "まとめ"]
     article = ""
-    section_titles = ["動画の概要", "ポイント解説", "まとめ"]
-    for i, para in enumerate(paragraphs[:3]):
+    for i, para in enumerate(paragraphs):
         if i < len(section_titles):
             article += f"\n## {section_titles[i]}\n\n"
         article += para + "\n\n"
