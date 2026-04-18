@@ -54,23 +54,27 @@ TAGS = ["副業", "在宅ワーク", "シニア", "note収益化", "副業初心
 THUMBNAIL = "thumbnail.png"
 
 
-def set_clipboard(text):
-    import pyperclip
-    pyperclip.copy(text)
+def insert_text(page, text):
+    """JavaScript execCommand でエディタに直接テキスト挿入（長さ制限なし）"""
+    # 改行を含むテキストを安全に渡すためJSONエンコード
+    import json
+    js = f"document.execCommand('insertText', false, {json.dumps(text)})"
+    page.evaluate(js)
+    page.wait_for_timeout(100)
 
 
 def type_article(page, body):
-    """見出し・本文を入力。見出しはキー操作、段落はクリップボード一括貼り付け"""
+    """見出し・本文を入力。見出しはキー操作、段落はexecCommandで直接挿入"""
     lines = body.split("\n")
     i = 0
     while i < len(lines):
         line = lines[i]
 
         if line.startswith("## "):
-            heading_text = line[3:]
+            # H2見出し: ## + スペース でnote.comが自動変換
             page.keyboard.type("## ")
             page.wait_for_timeout(200)
-            page.keyboard.type(heading_text)
+            insert_text(page, line[3:])
             page.keyboard.press("Enter")
             page.wait_for_timeout(300)
 
@@ -79,15 +83,13 @@ def type_article(page, body):
             page.wait_for_timeout(100)
 
         else:
-            # 段落をまとめて収集して一括貼り付け
+            # 段落をまとめてexecCommandで一括挿入
             para_lines = []
             while i < len(lines) and lines[i].strip() != "" and not lines[i].startswith("## "):
                 para_lines.append(lines[i])
                 i += 1
-            para = "\n".join(para_lines)
-            set_clipboard(para)
-            page.keyboard.press("Control+v")
-            page.wait_for_timeout(400)
+            insert_text(page, "\n".join(para_lines))
+            page.keyboard.press("Enter")
             page.keyboard.press("Enter")
             page.wait_for_timeout(200)
             continue
@@ -100,31 +102,48 @@ def upload_thumbnail(page, thumbnail_path):
     if not os.path.exists(thumbnail_path):
         print("thumbnail.png が見つかりません。スキップします")
         return
-    try:
-        abs_path = os.path.abspath(thumbnail_path)
 
-        # ファイル選択ダイアログをfile_chooserで捕捉して直接セット
-        with page.expect_file_chooser(timeout=8000) as fc_info:
-            # note.comのカバー画像ボタン（複数セレクタを試す）
+    abs_path = os.path.abspath(thumbnail_path)
+
+    # 現在の画面をスクショ保存して確認
+    page.screenshot(path="screen_before_thumb.png")
+    print("スクリーンショット保存: screen_before_thumb.png")
+
+    # すべてのfile inputに直接セット（クリック不要）
+    file_inputs = page.locator("input[type='file']")
+    count = file_inputs.count()
+    print(f"ファイル入力欄: {count}個見つかりました")
+
+    if count > 0:
+        try:
+            file_inputs.first.set_input_files(abs_path)
+            page.wait_for_timeout(3000)
+            page.screenshot(path="screen_after_thumb.png")
+            print("サムネイルアップロード完了")
+            return
+        except Exception as e:
+            print(f"直接セット失敗: {e}")
+
+    # file inputが非表示の場合、ボタンクリック→ダイアログ捕捉
+    try:
+        with page.expect_file_chooser(timeout=6000) as fc_info:
             for sel in [
-                "button:has-text('カバー画像')",
-                "button:has-text('画像を追加')",
-                "[data-type='cover'] button",
-                "label:has-text('カバー')",
-                "input[type='file']",
+                "button:has-text('カバー')",
+                "button:has-text('画像')",
+                "[class*='cover'] button",
+                "[class*='thumbnail'] button",
             ]:
                 try:
-                    page.click(sel, timeout=3000)
+                    page.click(sel, timeout=2000)
                     break
                 except Exception:
                     continue
-
         fc_info.value.set_files(abs_path)
         page.wait_for_timeout(3000)
         print("サムネイルアップロード完了")
     except Exception as e:
-        print(f"サムネイル自動アップロード失敗: {e}")
-        print("→ note.com画面で手動でカバー画像を設定してください")
+        print(f"サムネイルアップロード失敗: {e}")
+        print("→ screen_before_thumb.png を確認して手動でカバー画像を設定してください")
 
 
 def main():
