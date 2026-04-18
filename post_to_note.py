@@ -29,6 +29,31 @@ BODY = """\
 Claude Codeは「AIがコードを書く」ツールではなく、「人間とAIが協働する」ための道具だと思う。うまく活用することで、開発のスピードと品質を同時に上げられる可能性がある。まだ試したことがない方は、ぜひ一度体験してみてほしい。"""
 
 
+def login(session):
+    # ログインページを先に取得してCookieをセット
+    session.get("https://note.com/login")
+
+    endpoints = [
+        ("POST", "https://note.com/api/v1/sessions",  {"login": EMAIL, "password": PASSWORD}),
+        ("POST", "https://note.com/api/v2/sessions",  {"login": EMAIL, "password": PASSWORD}),
+        ("POST", "https://note.com/api/v1/sessions",  {"email": EMAIL, "password": PASSWORD}),
+        ("POST", "https://note.com/api/v3/sessions",  {"login": EMAIL, "password": PASSWORD}),
+    ]
+
+    for method, url, payload in endpoints:
+        print(f"Trying {url} ...")
+        res = session.post(url, json=payload)
+        print(f"  -> {res.status_code}: {res.text[:120]}")
+        if res.status_code in (200, 201):
+            data = res.json().get("data", {})
+            token = data.get("token")
+            if token:
+                session.headers["X-Note-Token"] = token
+            print("Login OK")
+            return True
+    return False
+
+
 def main():
     session = requests.Session()
     session.headers.update({
@@ -39,20 +64,9 @@ def main():
     })
 
     print("Logging in to note.com...")
-    res = session.post(
-        "https://note.com/api/v1/sessions",
-        json={"login": EMAIL, "password": PASSWORD},
-    )
-    print(f"Login status: {res.status_code}")
-    if res.status_code not in (200, 201):
-        print("Login failed:", res.text[:300])
+    if not login(session):
+        print("All login attempts failed.")
         sys.exit(1)
-
-    data = res.json().get("data", {})
-    token = data.get("token")
-    if token:
-        session.headers["X-Note-Token"] = token
-    print("Login OK")
 
     print("Creating draft...")
     res2 = session.post(
