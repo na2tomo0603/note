@@ -1,16 +1,21 @@
 #!/usr/bin/env python3
 """
-YouTube動画を文字起こしして note.com に下書き投稿するスクリプト
-使い方: python youtube_to_note.py <YouTube URL>
+/youtube-to-note スキル実行スクリプト
+YouTube URL → 文字起こし → 記事整形 → サムネ生成 → article_draft.md 保存
 """
 
 import sys
 import re
+import os
+import textwrap
 import traceback
+
 
 EMAIL    = "na2tomo0603@gmail.com"
 PASSWORD = "ymas0603"
 USER_ID  = "na2tomo0603"
+
+FONT_PATH = None  # 自動検出
 
 
 def get_video_id(url):
@@ -24,103 +29,144 @@ def get_video_id(url):
 def get_transcript(video_id):
     from youtube_transcript_api import YouTubeTranscriptApi
     api = YouTubeTranscriptApi()
-    try:
-        t = api.fetch(video_id, languages=["ja"])
-        print("日本語字幕を取得しました")
-    except Exception:
+    for lang in ["ja", "en"]:
         try:
-            t = api.fetch(video_id, languages=["en"])
-            print("英語字幕を取得しました")
-        except Exception as e:
-            print(f"字幕の取得に失敗しました: {e}")
-            sys.exit(1)
-    return " ".join([s.text.strip() for s in t])
+            t = api.fetch(video_id, languages=[lang])
+            text = " ".join([s.text.strip() for s in t])
+            print(f"字幕取得完了（{lang}）: {len(text)}文字")
+            with open("transcript.txt", "w", encoding="utf-8") as f:
+                f.write(text)
+            return text
+        except Exception:
+            continue
+    print("ERROR: 字幕を取得できませんでした")
+    sys.exit(1)
 
 
-def format_article(raw_text, title):
-    """Claude APIで記事に整形（APIキーがない場合はそのまま使用）"""
-    import os
+def get_video_title(video_id):
+    """動画タイトルを取得（取得できない場合はIDを返す）"""
+    try:
+        import urllib.request
+        url = f"https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v={video_id}&format=json"
+        with urllib.request.urlopen(url, timeout=5) as r:
+            import json
+            data = json.loads(r.read())
+            return data.get("title", video_id)
+    except Exception:
+        return video_id
+
+
+def format_article_with_claude(raw_text, video_title):
     api_key = os.environ.get("ANTHROPIC_API_KEY")
     if not api_key:
-        print("ANTHROPIC_API_KEY が未設定のため、字幕をそのまま使用します")
-        # 基本的な整形のみ
-        text = re.sub(r"\s+", " ", raw_text).strip()
-        # 句点で改行
-        text = text.replace("。", "。\n\n")
-        return text
+        print("ANTHROPIC_API_KEY未設定 → 基本整形のみ実施")
+        return basic_format(raw_text, video_title), video_title
 
     import anthropic
     client = anthropic.Anthropic(api_key=api_key)
-    print("Claude APIで記事に整形中...")
+    print("Claude APIで記事・タイトル・タグを生成中...")
+
     message = client.messages.create(
         model="claude-sonnet-4-6",
         max_tokens=4096,
         messages=[{
             "role": "user",
-            "content": f"""以下はYouTube動画「{title}」の文字起こしです。
-これをnote.comに投稿する読みやすいブログ記事に整形してください。
+            "content": f"""以下はYouTube動画「{video_title}」の文字起こしです。
+これをnote.comに投稿する質の高いブログ記事に整形してください。
 
-要件：
-- 1000〜1500文字程度
-- 見出しを使って構造化する
-- 話し言葉を書き言葉に変換する
-- 動画の内容を忠実に要約する
-- タイトルは含めない（本文のみ）
+出力形式（必ずこの形式で）:
+===TITLE===
+（note記事のタイトル：30文字以内）
+===TAGS===
+（タグをカンマ区切りで5〜8個）
+===BODY===
+（本文：1000〜1500文字、見出し##を使って構造化、話し言葉→書き言葉）
 
-文字起こし：
+文字起こし:
 {raw_text[:8000]}"""
         }]
     )
-    return message.content[0].text
+
+    output = message.content[0].text
+    title = re.search(r"===TITLE===\s*(.+)", output)
+    tags  = re.search(r"===TAGS===\s*(.+)", output)
+    body  = re.search(r"===BODY===\s*([\s\S]+)", output)
+
+    article_title = title.group(1).strip() if title else video_title
+    article_tags  = tags.group(1).strip()  if tags  else ""
+    article_body  = body.group(1).strip()  if body  else raw_text[:2000]
+
+    return article_body, article_title, article_tags
 
 
-def post_to_note(title, body):
-    from playwright.sync_api import sync_playwright, TimeoutError as PWTimeout
+def basic_format(raw_text, video_title):
+    text = re.sub(r"\s+", " ", raw_text).strip()
+    text = text.replace("。", "。\n\n")
+    return text
 
-    with sync_playwright() as p:
-        print("ブラウザを起動中...")
-        browser = p.chromium.launch(headless=False)
-        page = browser.new_page()
 
-        print("note.com にログイン中...")
-        page.goto("https://note.com/login", wait_until="domcontentloaded")
-        page.wait_for_timeout(2000)
-        page.fill("input[type='email'], input[id='email']", EMAIL)
-        page.wait_for_timeout(500)
-        page.fill("input[type='password']", PASSWORD)
-        page.wait_for_timeout(500)
-        page.click("button[type='submit'], button:has-text('ログイン')")
-        page.wait_for_load_state("domcontentloaded")
-        page.wait_for_timeout(3000)
+def make_thumbnail(title_text):
+    try:
+        from PIL import Image, ImageDraw, ImageFont
+    except ImportError:
+        print("Pillowが未インストール: pip install pillow")
+        return
 
-        print("記事作成ページへ移動中...")
-        page.goto("https://note.com/notes/new", wait_until="domcontentloaded")
-        page.wait_for_timeout(3000)
+    W, H = 1280, 670
 
-        print("タイトルを入力中...")
-        title_sel = "textarea, input[placeholder*='タイトル'], [data-placeholder*='タイトル']"
-        page.wait_for_selector(title_sel, timeout=10000)
-        page.click(title_sel)
-        page.keyboard.type(title)
-        page.wait_for_timeout(500)
+    # フォント検索
+    font_candidates = [
+        "/usr/share/fonts/opentype/ipafont-gothic/ipag.ttf",
+        "/usr/share/fonts/truetype/fonts-japanese-gothic.ttf",
+        "C:/Windows/Fonts/msgothic.ttc",
+        "C:/Windows/Fonts/meiryo.ttc",
+    ]
+    font_path = next((f for f in font_candidates if os.path.exists(f)), None)
 
-        print("本文を入力中...")
-        page.keyboard.press("Tab")
-        page.wait_for_timeout(500)
-        page.keyboard.type(body)
-        page.wait_for_timeout(1000)
+    img  = Image.new("RGB", (W, H))
+    draw = ImageDraw.Draw(img)
 
-        print("下書き保存中...")
-        try:
-            page.click("button:has-text('下書き保存'), button:has-text('保存')", timeout=5000)
-        except PWTimeout:
-            page.keyboard.press("Control+s")
-        page.wait_for_timeout(3000)
+    # グラデーション背景
+    for y in range(H):
+        r = int(15 + 25 * y / H)
+        g = int(32 + 48 * y / H)
+        b = int(80 + 80 * y / H)
+        draw.line([(0, y), (W, y)], fill=(r, g, b))
 
-        print()
-        print("SUCCESS! 下書き保存しました")
-        print(f"URL: {page.url}")
-        browser.close()
+    # 装飾ライン
+    draw.rectangle([0, 0, 8, H], fill=(255, 180, 0))
+    draw.rectangle([0, H - 8, W, H], fill=(255, 180, 0))
+
+    if font_path:
+        font_badge = ImageFont.truetype(font_path, 30)
+        font_title = ImageFont.truetype(font_path, 72)
+        font_sub   = ImageFont.truetype(font_path, 36)
+    else:
+        font_badge = font_title = font_sub = ImageFont.load_default()
+
+    # バッジ
+    draw.rectangle([60, 55, 500, 105], fill=(255, 180, 0))
+    draw.text((72, 63), "副業 × 在宅ワーク × 初心者OK", font=font_badge, fill=(15, 32, 80))
+
+    # タイトル（長い場合は折り返し）
+    short = textwrap.fill(title_text, width=14)
+    draw.text((60, 130), short, font=font_title, fill=(255, 255, 255), spacing=14)
+
+    # 右下
+    draw.text((W - 280, H - 50), "働かない働き方", font=font_sub, fill=(200, 220, 255))
+
+    img.save("thumbnail.png")
+    print("サムネイル生成: thumbnail.png (1280x670)")
+
+
+def save_article(title, body, tags=""):
+    content = f"# {title}\n\n"
+    if tags:
+        content += f"**タグ:** {tags}\n\n---\n\n"
+    content += body
+    with open("article_draft.md", "w", encoding="utf-8") as f:
+        f.write(content)
+    print(f"記事保存: article_draft.md ({len(body)}文字)")
 
 
 def main():
@@ -128,25 +174,34 @@ def main():
         print("使い方: python youtube_to_note.py <YouTube URL>")
         sys.exit(1)
 
-    url = sys.argv[1]
+    url      = sys.argv[1]
     video_id = get_video_id(url)
     print(f"動画ID: {video_id}")
 
-    print("字幕を取得中...")
+    print("\n▼ 字幕取得中...")
     raw_text = get_transcript(video_id)
-    print(f"取得完了（{len(raw_text)}文字）")
 
-    # タイトルを動画IDから仮設定（Claude APIがあれば改善可）
-    title = f"【動画まとめ】{video_id}"
+    print("\n▼ 動画タイトル取得中...")
+    video_title = get_video_title(video_id)
+    print(f"タイトル: {video_title}")
 
-    body = format_article(raw_text, title)
-    print(f"記事整形完了（{len(body)}文字）")
-    print()
-    print("=== 記事プレビュー（最初の200文字）===")
-    print(body[:200])
-    print("...")
+    print("\n▼ 記事整形中...")
+    result = format_article_with_claude(raw_text, video_title)
+    if len(result) == 3:
+        body, title, tags = result
+    else:
+        body, title, tags = result[0], video_title, ""
 
-    post_to_note(title, body)
+    print("\n▼ サムネイル生成中...")
+    make_thumbnail(title)
+
+    print("\n▼ 記事保存中...")
+    save_article(title, body, tags)
+
+    print("\n" + "="*40)
+    print("完了！次のコマンドでnote.comに投稿できます:")
+    print("  python post_to_note.py")
+    print("="*40)
 
 
 if __name__ == "__main__":
@@ -157,5 +212,4 @@ if __name__ == "__main__":
         print("ERROR:", msg)
         with open("error.log", "w", encoding="utf-8") as f:
             f.write(msg)
-        print("error.log に保存しました")
-    input("Press Enter to exit...")
+    input("\nEnterキーで終了...")
