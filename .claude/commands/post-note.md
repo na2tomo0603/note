@@ -1,6 +1,6 @@
 # note.com 下書き投稿スキル
 
-このコマンドは `article_draft.md` の内容をnote.comに下書き投稿します。
+`article_draft.md` の内容をPlaywrightでnote.comに下書き投稿します。
 
 ## 手順
 
@@ -11,7 +11,12 @@
 ## 実行
 
 ```bash
-python3 post_to_note.py
+python post_to_note.py
 ```
 
-結果として下書き保存の成否を報告してください。
+## 注意事項
+
+- Playwrightのブラウザ操作でnote.comにログインして投稿します
+- サムネイル（`thumbnail.png`）が存在すれば自動アップロードを試みます
+- 失敗した場合は手動でカバー画像を設定してください
+- 投稿後のURLをユーザーに報告してください
