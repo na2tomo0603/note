@@ -127,50 +127,59 @@ def download_images(image_urls: list) -> list:
 # ---------- minne 投稿 ----------
 
 def post_to_minne(page, product: dict, local_images: list):
-    print("\n[minne] ログイン中...")
+    print("\n[minne] ログイン中 (GMO ID)...")
     page.goto("https://minne.com/users/sign_in", wait_until="networkidle")
     page.wait_for_timeout(3000)
     page.screenshot(path="minne_01_login.png")
 
-    # メールアドレス入力
+    # GMO IDでログイン ボタンをクリック
+    _click(page, [
+        "a:has-text('GMO ID')",
+        "button:has-text('GMO ID')",
+        "[class*='gmoid']",
+        "[href*='gmo']",
+    ])
+    page.wait_for_load_state("networkidle")
+    page.wait_for_timeout(3000)
+    page.screenshot(path="minne_02_gmoid.png")
+    print(f"[minne] GMO IDページURL: {page.url}")
+
+    # GMO ID ログインフォーム
     try:
-        page.wait_for_selector("input[type='email'], input[type='text']", timeout=8000)
+        page.wait_for_selector("input[type='email'], input[type='text'], input[name*='login']", timeout=8000)
     except Exception:
         pass
     _fill(page, [
         "input[type='email']",
-        "input[autocomplete='email']",
+        "input[name*='login_id']",
         "input[name*='email']",
-        "input[id*='email']",
+        "input[id*='login']",
         "input[type='text']",
     ], MINNE_EMAIL)
     page.wait_for_timeout(500)
 
-    # パスワード入力
     _fill(page, [
         "input[type='password']",
-        "input[autocomplete='current-password']",
         "input[name*='password']",
         "input[id*='password']",
     ], MINNE_PASSWORD)
     page.wait_for_timeout(500)
-    page.screenshot(path="minne_02_filled.png")
+    page.screenshot(path="minne_03_gmoid_filled.png")
 
     _click(page, [
         "button[type='submit']",
         "input[type='submit']",
         "button:has-text('ログイン')",
-        "button:has-text('サインイン')",
+        "button:has-text('次へ')",
         "[class*='submit']",
-        "[class*='login']",
     ])
     page.wait_for_load_state("networkidle")
-    page.wait_for_timeout(4000)
-    page.screenshot(path="minne_03_after_login.png")
+    page.wait_for_timeout(5000)
+    page.screenshot(path="minne_04_after_login.png")
     print(f"[minne] ログイン後URL: {page.url}")
 
-    if "sign_in" in page.url:
-        print("  ※ ログインに失敗した可能性があります。minne_02_filled.png を確認してください")
+    if "sign_in" in page.url or "login" in page.url:
+        print("  ※ ログインに失敗した可能性があります。minne_04_after_login.png を確認してください")
 
     print("[minne] 商品作成ページへ移動...")
     page.goto("https://minne.com/items/new", wait_until="networkidle")
