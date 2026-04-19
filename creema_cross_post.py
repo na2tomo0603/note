@@ -420,7 +420,11 @@ def main():
     session_file = MINNE_SESSION if target == "minne" else IICHI_SESSION
 
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=False)
+        chrome_path = "/opt/pw-browsers/chromium-1194/chrome-linux/chrome"
+        launch_opts = {"headless": True}
+        if os.path.exists(chrome_path):
+            launch_opts["executable_path"] = chrome_path
+        browser = p.chromium.launch(**launch_opts)
 
         if os.path.exists(session_file):
             context = browser.new_context(storage_state=session_file)
