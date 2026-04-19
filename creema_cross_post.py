@@ -150,11 +150,11 @@ def post_to_minne(page, product: dict, local_images: list):
     page.wait_for_timeout(2000)
     print(f"[minne] 現在のURL: {page.url}")
 
-    # 出品ページへ自動移動を試みる
+    # 出品ページへ自動移動
     print("[minne] 出品ページを探しています...")
     listing_url = None
-    for url in ["https://minne.com/works/new", "https://minne.com/seller/items/new",
-                "https://minne.com/items/new", "https://minne.com/listing/new"]:
+    for url in ["https://minne.com/account/products/new", "https://minne.com/works/new",
+                "https://minne.com/seller/items/new", "https://minne.com/listing/new"]:
         try:
             page.goto(url, wait_until="domcontentloaded", timeout=10000)
             page.wait_for_timeout(2000)
@@ -232,15 +232,20 @@ def post_to_minne(page, product: dict, local_images: list):
         ])
         page.wait_for_timeout(3000)
 
-    print("[minne] 下書き保存中...")
+    print("[minne] 保存中...")
+    page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
+    page.wait_for_timeout(1000)
     page.screenshot(path="minne_before_save.png")
     _click(page, [
+        "button:has-text('非公開で保存')",
+        "a:has-text('非公開で保存')",
+        "button:has-text('非公開')",
         "button:has-text('下書き保存')",
-        "a:has-text('下書き保存')",
         "button:has-text('下書き')",
-        "a:has-text('下書き')",
         "button:has-text('保存')",
+        "button:has-text('出品する')",
         "[class*='draft']",
+        "[class*='save']",
     ])
     page.wait_for_timeout(4000)
     page.screenshot(path="minne_after_save.png")
