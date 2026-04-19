@@ -9,7 +9,6 @@ import urllib.request
 from pathlib import Path
 
 # ===== 認証情報設定 =====
-# 環境変数 MINNE_EMAIL / MINNE_PASSWORD を設定するか、下記に直接入力してください
 MINNE_EMAIL    = os.environ.get("MINNE_EMAIL", "na2ko0710@yahoo.co.jp")
 MINNE_PASSWORD = os.environ.get("MINNE_PASSWORD", "na2tomo0603")
 
@@ -26,7 +25,10 @@ SUPPORTED_SITES = ["minne", "iichi"]
 
 def scrape_creema(page, url: str) -> dict:
     print(f"[Creema] 商品ページを取得中: {url}")
-    page.goto(url, wait_until="domcontentloaded")
+    try:
+        page.goto(url, wait_until="domcontentloaded", timeout=30000)
+    except Exception:
+        pass
     page.wait_for_timeout(2000)
 
     title = _extract_text(page, [
@@ -43,7 +45,6 @@ def scrape_creema(page, url: str) -> dict:
         "[class*='price']",
         ".price",
     ])
-    # 数字+円のみ残す
     price_clean = re.sub(r"[^\d]", "", price)
 
     description = _extract_text(page, [
@@ -108,10 +109,10 @@ def _extract_images(page, selectors: list) -> list:
 # ---------- 画像ダウンロード ----------
 
 def download_images(image_urls: list) -> list:
+    from urllib.parse import urlparse
     Path(IMAGES_DIR).mkdir(exist_ok=True)
     local_paths = []
     for i, url in enumerate(image_urls):
-        from urllib.parse import urlparse
         url_path = urlparse(url).path
         fname = url_path.split("/")[-1]
         raw_ext = fname.rsplit(".", 1)[-1] if "." in fname else ""
@@ -155,7 +156,7 @@ def post_to_minne(page, product: dict, local_images: list):
     except Exception:
         pass
     page.wait_for_timeout(5000)
-    page.screenshot(path="minne_04_new_item.png")
+    page.screenshot(path="minne_new_item.png")
 
     # 商品名
     try:
@@ -171,7 +172,6 @@ def post_to_minne(page, product: dict, local_images: list):
     ], product["title"])
     page.wait_for_timeout(500)
 
-    # 価格
     if product["price"]:
         _fill(page, [
             "input[name='item[price]']",
@@ -181,7 +181,6 @@ def post_to_minne(page, product: dict, local_images: list):
         ], product["price"])
         page.wait_for_timeout(500)
 
-    # 説明文
     _fill(page, [
         "textarea[name='item[description]']",
         "textarea[id*='description']",
@@ -190,9 +189,8 @@ def post_to_minne(page, product: dict, local_images: list):
         "textarea",
     ], product["description"])
     page.wait_for_timeout(500)
-    page.screenshot(path="minne_05_form_filled.png")
+    page.screenshot(path="minne_form_filled.png")
 
-    # 画像アップロード
     if local_images:
         print(f"[minne] 画像アップロード中 ({len(local_images)}枚)...")
         _upload_images(page, local_images, [
@@ -201,9 +199,8 @@ def post_to_minne(page, product: dict, local_images: list):
         ])
         page.wait_for_timeout(3000)
 
-    # 下書き保存
     print("[minne] 下書き保存中...")
-    page.screenshot(path="minne_06_before_save.png")
+    page.screenshot(path="minne_before_save.png")
     _click(page, [
         "button:has-text('下書き保存')",
         "a:has-text('下書き保存')",
@@ -213,7 +210,7 @@ def post_to_minne(page, product: dict, local_images: list):
         "[class*='draft']",
     ])
     page.wait_for_timeout(4000)
-    page.screenshot(path="minne_07_after_save.png")
+    page.screenshot(path="minne_after_save.png")
     print(f"[minne] 投稿完了 URL: {page.url}")
     return page.url
 
@@ -221,29 +218,34 @@ def post_to_minne(page, product: dict, local_images: list):
 # ---------- iichi 投稿 ----------
 
 def post_to_iichi(page, product: dict, local_images: list):
-    print("\n[iichi] ログイン中...")
-    page.goto("https://www.iichi.com/login", wait_until="domcontentloaded")
+    print("\n[iichi] ログインページを開きます...")
+    try:
+        page.goto("https://www.iichi.com/login", wait_until="domcontentloaded", timeout=30000)
+    except Exception:
+        pass
     page.wait_for_timeout(2000)
 
-    _fill(page, ["input[name='email']", "input[type='email']", "#email"], IICHI_EMAIL)
-    _fill(page, ["input[name='password']", "input[type='password']", "#password"], IICHI_PASSWORD)
-    _click(page, ["button[type='submit']", "input[type='submit']", "button:has-text('ログイン')"])
-    page.wait_for_load_state("domcontentloaded")
-    page.wait_for_timeout(3000)
-    print(f"[iichi] ログイン後URL: {page.url}")
+    print("\n" + "="*50)
+    print("【手動でログインしてください】")
+    print("1. 開いたブラウザでiichiにログインしてください")
+    print("2. ログイン後、ここに戻ってきてください")
+    print("="*50)
+    input("ログイン完了後、Enterキーを押してください... ")
+    page.wait_for_timeout(2000)
 
     print("[iichi] 商品作成ページへ移動...")
-    page.goto("https://www.iichi.com/listing/item/new", wait_until="domcontentloaded")
+    try:
+        page.goto("https://www.iichi.com/listing/item/new", wait_until="domcontentloaded", timeout=30000)
+    except Exception:
+        pass
     page.wait_for_timeout(3000)
 
-    # 商品名
     _fill(page, [
         "input[name='title']", "#title",
         "input[placeholder*='商品名']", "input[placeholder*='タイトル']",
     ], product["title"])
     page.wait_for_timeout(400)
 
-    # 価格
     if product["price"]:
         _fill(page, [
             "input[name='price']", "#price",
@@ -251,14 +253,12 @@ def post_to_iichi(page, product: dict, local_images: list):
         ], product["price"])
         page.wait_for_timeout(400)
 
-    # 説明文
     _fill(page, [
         "textarea[name='description']", "#description",
         "textarea[placeholder*='説明']",
     ], product["description"])
     page.wait_for_timeout(400)
 
-    # 画像アップロード
     if local_images:
         print(f"[iichi] 画像アップロード中 ({len(local_images)}枚)...")
         _upload_images(page, local_images, [
@@ -266,7 +266,6 @@ def post_to_iichi(page, product: dict, local_images: list):
             "input[type='file']",
         ])
 
-    # 下書き保存
     print("[iichi] 下書き保存中...")
     _click(page, [
         "button:has-text('下書き保存')",
@@ -310,13 +309,11 @@ def _upload_images(page, local_paths: list, selectors: list):
         try:
             inputs = page.locator(sel)
             if inputs.count() > 0:
-                # 複数ファイルを一括セット試行
                 try:
                     inputs.first.set_input_files(local_paths[:5], timeout=5000)
                     page.wait_for_timeout(3000)
                     return
                 except Exception:
-                    # 1枚ずつ試行
                     for path in local_paths[:5]:
                         try:
                             inputs.first.set_input_files(path, timeout=5000)
@@ -352,18 +349,15 @@ def main():
         browser = p.chromium.launch(headless=False)
         page    = browser.new_page()
 
-        # Step 1: Creema から商品情報取得
         product = scrape_creema(page, creema_url)
 
         with open(OUTPUT_FILE, "w", encoding="utf-8") as f:
             json.dump(product, f, ensure_ascii=False, indent=2)
         print(f"商品情報を {OUTPUT_FILE} に保存しました")
 
-        # Step 2: 画像ダウンロード
         print(f"\n画像をダウンロード中 ({len(product['images'])}枚)...")
         local_images = download_images(product["images"])
 
-        # Step 3: 投稿
         if target == "minne":
             result_url = post_to_minne(page, product, local_images)
         elif target == "iichi":
