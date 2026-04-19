@@ -12,8 +12,8 @@ from pathlib import Path
 MINNE_EMAIL    = os.environ.get("MINNE_EMAIL", "na2ko0710@yahoo.co.jp")
 MINNE_PASSWORD = os.environ.get("MINNE_PASSWORD", "na2tomo0603")
 
-IICHI_EMAIL    = os.environ.get("IICHI_EMAIL", "your_iichi_email@example.com")
-IICHI_PASSWORD = os.environ.get("IICHI_PASSWORD", "your_iichi_password")
+IICHI_EMAIL    = os.environ.get("IICHI_EMAIL", "na2ko0710@yahoo.co.jp")
+IICHI_PASSWORD = os.environ.get("IICHI_PASSWORD", "na2tomo0603")
 
 IMAGES_DIR  = "creema_images"
 OUTPUT_FILE = "creema_product.json"
@@ -150,7 +150,6 @@ def post_to_minne(page, product: dict, local_images: list):
     page.wait_for_timeout(2000)
     print(f"[minne] 現在のURL: {page.url}")
 
-    # 出品ページへ自動移動
     print("[minne] 出品ページを探しています...")
     listing_url = None
     for url in ["https://minne.com/account/products/new", "https://minne.com/works/new",
@@ -191,7 +190,6 @@ def post_to_minne(page, product: dict, local_images: list):
     page.screenshot(path="minne_new_item.png")
     print(f"[minne] 出品ページURL: {page.url}")
 
-    # 商品名
     try:
         page.wait_for_selector("input, textarea", timeout=8000)
     except Exception:
@@ -256,27 +254,55 @@ def post_to_minne(page, product: dict, local_images: list):
 # ---------- iichi 投稿 ----------
 
 def post_to_iichi(page, product: dict, local_images: list):
-    print("\n[iichi] ログインページを開きます...")
+    print("\n[iichi] ログイン中...")
     try:
         page.goto("https://www.iichi.com/login", wait_until="domcontentloaded", timeout=30000)
     except Exception:
         pass
-    page.wait_for_timeout(2000)
+    page.wait_for_timeout(3000)
+    page.screenshot(path="iichi_01_login.png")
 
-    print("\n" + "="*50)
-    print("【手動でログインしてください】")
-    print("1. 開いたブラウザでiichiにログインしてください")
-    print("2. ログイン後、ここに戻ってきてください")
-    print("="*50)
-    input("ログイン完了後、Enterキーを押してください... ")
-    page.wait_for_timeout(2000)
+    _fill(page, ["input[type='email']", "input[name*='email']", "input[id*='email']", "input[type='text']"], IICHI_EMAIL)
+    page.wait_for_timeout(400)
+    _fill(page, ["input[type='password']", "input[name*='password']", "input[id*='password']"], IICHI_PASSWORD)
+    page.wait_for_timeout(400)
+    _click(page, ["button[type='submit']", "input[type='submit']", "button:has-text('ログイン')"])
+    page.wait_for_timeout(4000)
+    page.screenshot(path="iichi_02_after_login.png")
+    print(f"[iichi] ログイン後URL: {page.url}")
 
-    print("\n" + "="*50)
-    print("【出品ページを開いてください】")
-    print("iichi の出品フォームを開いてください。")
-    print("="*50)
-    input("出品フォームが開いたら、Enterキーを押してください... ")
-    page.wait_for_timeout(2000)
+    if "login" in page.url or "signin" in page.url.lower():
+        print("\n" + "="*50)
+        print("【手動でログインしてください】")
+        print("ブラウザでiichiにログインしてEnterを押してください")
+        print("="*50)
+        input("ログイン完了後、Enterキーを押してください... ")
+        page.wait_for_timeout(2000)
+
+    print("[iichi] 出品ページを探しています...")
+    listing_url = None
+    for url in ["https://www.iichi.com/listing/item/new", "https://www.iichi.com/items/new",
+                "https://www.iichi.com/sell/new"]:
+        try:
+            page.goto(url, wait_until="domcontentloaded", timeout=10000)
+            page.wait_for_timeout(2000)
+            if page.locator("input, textarea").count() > 2:
+                listing_url = url
+                print(f"[iichi] 出品ページ発見: {url}")
+                break
+        except Exception:
+            continue
+
+    if not listing_url:
+        print("\n" + "="*50)
+        print("【出品ページを手動で開いてください】")
+        print("ブラウザでiichi の出品フォームを開いてください")
+        print("="*50)
+        input("出品フォームが開いたら、Enterキーを押してください... ")
+        page.wait_for_timeout(2000)
+
+    page.screenshot(path="iichi_03_new_item.png")
+    print(f"[iichi] 出品ページURL: {page.url}")
 
     _fill(page, [
         "input[name='title']", "#title",
@@ -304,14 +330,20 @@ def post_to_iichi(page, product: dict, local_images: list):
             "input[type='file']",
         ])
 
-    print("[iichi] 下書き保存中...")
+    print("[iichi] 保存中...")
+    page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
+    page.wait_for_timeout(1000)
+    page.screenshot(path="iichi_04_before_save.png")
     _click(page, [
+        "button:has-text('非公開で保存')",
         "button:has-text('下書き保存')",
         "button:has-text('下書き')",
         "a:has-text('下書き')",
         "button:has-text('保存')",
+        "button:has-text('出品する')",
     ])
     page.wait_for_timeout(3000)
+    page.screenshot(path="iichi_05_after_save.png")
     print(f"[iichi] 投稿完了 URL: {page.url}")
     return page.url
 
