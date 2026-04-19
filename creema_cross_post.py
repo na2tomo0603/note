@@ -286,32 +286,10 @@ def post_to_iichi(page, context, product: dict, local_images: list):
     else:
         print("[iichi] ログイン済みです")
 
-    # 出品ページへ自動移動
-    print("[iichi] 出品ページを探しています...")
-    listing_url = None
-    for url in [
-        "https://www.iichi.com/listing/item/new",
-        "https://www.iichi.com/items/new",
-        "https://www.iichi.com/listing/items/new",
-    ]:
-        try:
-            page.goto(url, wait_until="domcontentloaded", timeout=10000)
-            page.wait_for_timeout(2000)
-            page.screenshot(path=f"iichi_try_{url.split('/')[-2]}.png")
-            if page.locator("input, textarea").count() > 2:
-                listing_url = url
-                print(f"[iichi] 出品ページ発見: {url}")
-                break
-            print(f"  → フォームなし ({page.url})")
-        except Exception as e:
-            print(f"  → エラー: {e}")
-            continue
-
-    if not listing_url:
-        page.screenshot(path="iichi_listing_not_found.png")
-        raise RuntimeError("iichi出品ページが見つかりません。iichi_listing_not_found.png を確認してください。")
-
-    page.screenshot(path="iichi_new_item.png")
+    # 出品ページへ移動（JS描画を待つ）
+    print("[iichi] 出品ページへ移動中...")
+    page.goto("https://www.iichi.com/listing/items/new", wait_until="networkidle", timeout=20000)
+    page.wait_for_timeout(4000)
     print(f"[iichi] 出品ページURL: {page.url}")
 
     _fill(page, ["input[name='title']", "#title", "input[placeholder*='商品名']"], product["title"])
