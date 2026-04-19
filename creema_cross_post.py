@@ -111,7 +111,11 @@ def download_images(image_urls: list) -> list:
     Path(IMAGES_DIR).mkdir(exist_ok=True)
     local_paths = []
     for i, url in enumerate(image_urls):
-        ext = url.split("?")[0].rsplit(".", 1)[-1] or "jpg"
+        from urllib.parse import urlparse
+        url_path = urlparse(url).path
+        fname = url_path.split("/")[-1]
+        raw_ext = fname.rsplit(".", 1)[-1] if "." in fname else ""
+        ext = raw_ext if raw_ext and len(raw_ext) <= 4 else "jpg"
         dest = os.path.join(IMAGES_DIR, f"image_{i+1}.{ext}")
         try:
             req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
@@ -148,23 +152,17 @@ def post_to_minne(page, product: dict, local_images: list):
         }
     """)
     print(f"[minne] GMO IDボタン: {clicked}")
-    try:
-        page.wait_for_load_state("domcontentloaded", timeout=10000)
-    except Exception:
-        pass
-    page.wait_for_timeout(3000)
+    page.wait_for_timeout(6000)  # SSO リダイレクト完了を待つ
     page.screenshot(path="minne_02_gmoid.png")
     print(f"[minne] GMO IDページURL: {page.url}")
 
-    # GMO ID ログインフォーム
-    try:
-        page.wait_for_selector("input[type='email'], input[type='text'], input[name*='login']", timeout=8000)
-    except Exception:
-        pass
+    # GMO ID ログインフォーム（メールアドレス + パスワード）
+    page.wait_for_timeout(2000)
     _fill(page, [
         "input[type='email']",
-        "input[name*='login_id']",
-        "input[name*='email']",
+        "input[name='login_id']",
+        "input[name='email']",
+        "input[id*='email']",
         "input[id*='login']",
         "input[type='text']",
     ], MINNE_EMAIL)
@@ -172,7 +170,7 @@ def post_to_minne(page, product: dict, local_images: list):
 
     _fill(page, [
         "input[type='password']",
-        "input[name*='password']",
+        "input[name='password']",
         "input[id*='password']",
     ], MINNE_PASSWORD)
     page.wait_for_timeout(500)
@@ -182,14 +180,8 @@ def post_to_minne(page, product: dict, local_images: list):
         "button[type='submit']",
         "input[type='submit']",
         "button:has-text('ログイン')",
-        "button:has-text('次へ')",
-        "[class*='submit']",
     ])
-    try:
-        page.wait_for_load_state("domcontentloaded", timeout=10000)
-    except Exception:
-        pass
-    page.wait_for_timeout(5000)
+    page.wait_for_timeout(6000)  # ログイン後リダイレクトを待つ
     page.screenshot(path="minne_04_after_login.png")
     print(f"[minne] ログイン後URL: {page.url}")
 
@@ -197,8 +189,11 @@ def post_to_minne(page, product: dict, local_images: list):
         print("  ※ ログインに失敗した可能性があります。minne_04_after_login.png を確認してください")
 
     print("[minne] 商品作成ページへ移動...")
-    page.goto("https://minne.com/items/new", wait_until="domcontentloaded")
-    page.wait_for_timeout(4000)
+    try:
+        page.goto("https://minne.com/items/new", wait_until="domcontentloaded", timeout=30000)
+    except Exception:
+        pass
+    page.wait_for_timeout(5000)
     page.screenshot(path="minne_04_new_item.png")
 
     # 商品名
