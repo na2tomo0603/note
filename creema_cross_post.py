@@ -10,8 +10,8 @@ from pathlib import Path
 
 # ===== 認証情報設定 =====
 # 環境変数 MINNE_EMAIL / MINNE_PASSWORD を設定するか、下記に直接入力してください
-MINNE_EMAIL    = os.environ.get("MINNE_EMAIL", "your_minne_email@example.com")
-MINNE_PASSWORD = os.environ.get("MINNE_PASSWORD", "your_minne_password")
+MINNE_EMAIL    = os.environ.get("MINNE_EMAIL", "na2ko0710@yahoo.co.jp")
+MINNE_PASSWORD = os.environ.get("MINNE_PASSWORD", "na2tomo0603")
 
 IICHI_EMAIL    = os.environ.get("IICHI_EMAIL", "your_iichi_email@example.com")
 IICHI_PASSWORD = os.environ.get("IICHI_PASSWORD", "your_iichi_password")
