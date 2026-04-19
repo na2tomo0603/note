@@ -131,71 +131,23 @@ def download_images(image_urls: list) -> list:
 # ---------- minne 投稿 ----------
 
 def post_to_minne(page, product: dict, local_images: list):
-    print("\n[minne] ログイン中 (GMO ID)...")
-    page.goto("https://minne.com/users/sign_in", wait_until="domcontentloaded")
-    page.wait_for_timeout(3000)
-    page.screenshot(path="minne_01_login.png")
-
-    # GMO IDでログイン ボタンをJavaScriptで検索してクリック
-    clicked = page.evaluate("""
-        () => {
-            const candidates = [...document.querySelectorAll('a, button')];
-            const btn = candidates.find(el =>
-                el.href && (el.href.includes('gmo') || el.href.includes('oauth')) ||
-                el.textContent.includes('GMOID') ||
-                el.textContent.includes('GMO ID') ||
-                el.textContent.includes('GMOIDでログイン') ||
-                (el.className && el.className.toString().toLowerCase().includes('gmo'))
-            );
-            if (btn) { btn.click(); return btn.href || btn.textContent.trim(); }
-            return null;
-        }
-    """)
-    print(f"[minne] GMO IDボタン: {clicked}")
-    page.wait_for_timeout(6000)  # SSO リダイレクト完了を待つ
-    page.screenshot(path="minne_02_gmoid.png")
-    print(f"[minne] GMO IDページURL: {page.url}")
-
-    # GMO ID ログインフォーム（メールアドレス + パスワード）
+    print("\n[minne] ログインページを開きます...")
+    try:
+        page.goto("https://minne.com/users/sign_in", wait_until="domcontentloaded", timeout=30000)
+    except Exception:
+        pass
     page.wait_for_timeout(2000)
-    _fill(page, [
-        "input[type='email']",
-        "input[name='login_id']",
-        "input[name='email']",
-        "input[id*='email']",
-        "input[id*='login']",
-        "input[type='text']",
-    ], MINNE_EMAIL)
-    page.wait_for_timeout(500)
 
-    _fill(page, [
-        "input[type='password']",
-        "input[name='password']",
-        "input[id*='password']",
-    ], MINNE_PASSWORD)
-    page.wait_for_timeout(500)
-    page.screenshot(path="minne_03_gmoid_filled.png")
-
-    _click(page, [
-        "button[type='submit']",
-        "input[type='submit']",
-        "button:has-text('ログイン')",
-    ])
-    page.wait_for_timeout(5000)
-    page.screenshot(path="minne_04_after_login.png")
-    print(f"[minne] ログイン後URL: {page.url}")
-
-    # Cloudflare セキュリティ認証が出た場合は手動で対応
-    if "security" in page.url or "captcha" in page.url.lower():
-        print("\n" + "="*50)
-        print("【手動操作が必要です】")
-        print("ブラウザで「私はロボットではありません」に")
-        print("チェックを入れて「ログイン」ボタンを押してください。")
-        print("="*50)
-        input("完了したらここでEnterキーを押してください... ")
-        page.wait_for_timeout(4000)
-        page.screenshot(path="minne_05_after_captcha.png")
-        print(f"[minne] 認証後URL: {page.url}")
+    print("\n" + "="*50)
+    print("【手動でログインしてください】")
+    print("1. 開いたブラウザでminneにログインしてください")
+    print("   （GMO ID / Yahoo / Google など好きな方法で）")
+    print("2. ログイン後、minneのトップページが表示されたら")
+    print("   このターミナルに戻ってきてください")
+    print("="*50)
+    input("ログイン完了後、Enterキーを押してください... ")
+    page.wait_for_timeout(2000)
+    print(f"[minne] 現在のURL: {page.url}")
 
     print("[minne] 商品作成ページへ移動...")
     try:
