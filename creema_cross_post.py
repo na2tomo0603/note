@@ -150,13 +150,44 @@ def post_to_minne(page, product: dict, local_images: list):
     page.wait_for_timeout(2000)
     print(f"[minne] 現在のURL: {page.url}")
 
-    print("\n" + "="*50)
-    print("【出品ページを開いてください】")
-    print("ブラウザで minne の出品フォームを開いてください。")
-    print("（マイページ → 作品を出品する）")
-    print("="*50)
-    input("出品フォームが開いたら、Enterキーを押してください... ")
-    page.wait_for_timeout(2000)
+    # 出品ページへ自動移動を試みる
+    print("[minne] 出品ページを探しています...")
+    listing_url = None
+    for url in ["https://minne.com/works/new", "https://minne.com/seller/items/new",
+                "https://minne.com/items/new", "https://minne.com/listing/new"]:
+        try:
+            page.goto(url, wait_until="domcontentloaded", timeout=10000)
+            page.wait_for_timeout(2000)
+            if page.locator("input, textarea").count() > 2:
+                listing_url = url
+                print(f"[minne] 出品ページ発見: {url}")
+                break
+        except Exception:
+            continue
+
+    if not listing_url:
+        try:
+            page.goto("https://minne.com/account", wait_until="domcontentloaded", timeout=10000)
+        except Exception:
+            pass
+        page.evaluate("""
+            () => {
+                const links = [...document.querySelectorAll('a')];
+                const link = links.find(a => a.textContent.includes('出品') || a.href.includes('new'));
+                if (link) link.click();
+            }
+        """)
+        page.wait_for_timeout(3000)
+        print("\n" + "="*50)
+        print("【出品フォームが開きましたか？】")
+        print("ブラウザで商品名・価格の入力欄が見えたら")
+        print("Enterキーを押してください。")
+        print("見えない場合はブラウザで「作品を出品する」を")
+        print("クリックしてからEnterを押してください。")
+        print("="*50)
+        input("準備できたらEnterキーを押してください... ")
+        page.wait_for_timeout(2000)
+
     page.screenshot(path="minne_new_item.png")
     print(f"[minne] 出品ページURL: {page.url}")
 
