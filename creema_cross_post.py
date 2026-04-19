@@ -128,7 +128,7 @@ def download_images(image_urls: list) -> list:
 
 def post_to_minne(page, product: dict, local_images: list):
     print("\n[minne] ログイン中 (GMO ID)...")
-    page.goto("https://minne.com/users/sign_in", wait_until="networkidle")
+    page.goto("https://minne.com/users/sign_in", wait_until="domcontentloaded")
     page.wait_for_timeout(3000)
     page.screenshot(path="minne_01_login.png")
 
@@ -148,7 +148,10 @@ def post_to_minne(page, product: dict, local_images: list):
         }
     """)
     print(f"[minne] GMO IDボタン: {clicked}")
-    page.wait_for_load_state("networkidle")
+    try:
+        page.wait_for_load_state("domcontentloaded", timeout=10000)
+    except Exception:
+        pass
     page.wait_for_timeout(3000)
     page.screenshot(path="minne_02_gmoid.png")
     print(f"[minne] GMO IDページURL: {page.url}")
@@ -182,7 +185,10 @@ def post_to_minne(page, product: dict, local_images: list):
         "button:has-text('次へ')",
         "[class*='submit']",
     ])
-    page.wait_for_load_state("networkidle")
+    try:
+        page.wait_for_load_state("domcontentloaded", timeout=10000)
+    except Exception:
+        pass
     page.wait_for_timeout(5000)
     page.screenshot(path="minne_04_after_login.png")
     print(f"[minne] ログイン後URL: {page.url}")
@@ -191,7 +197,7 @@ def post_to_minne(page, product: dict, local_images: list):
         print("  ※ ログインに失敗した可能性があります。minne_04_after_login.png を確認してください")
 
     print("[minne] 商品作成ページへ移動...")
-    page.goto("https://minne.com/items/new", wait_until="networkidle")
+    page.goto("https://minne.com/items/new", wait_until="domcontentloaded")
     page.wait_for_timeout(4000)
     page.screenshot(path="minne_04_new_item.png")
 
