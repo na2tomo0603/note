@@ -128,41 +128,89 @@ def download_images(image_urls: list) -> list:
 
 def post_to_minne(page, product: dict, local_images: list):
     print("\n[minne] ログイン中...")
-    page.goto("https://minne.com/users/sign_in", wait_until="domcontentloaded")
-    page.wait_for_timeout(2000)
-
-    _fill(page, ["input[name='user[email]']", "input[type='email']", "#user_email"], MINNE_EMAIL)
-    _fill(page, ["input[name='user[password]']", "input[type='password']", "#user_password"], MINNE_PASSWORD)
-    _click(page, ["button[type='submit']", "input[type='submit']", "button:has-text('ログイン')"])
-    page.wait_for_load_state("domcontentloaded")
+    page.goto("https://minne.com/users/sign_in", wait_until="networkidle")
     page.wait_for_timeout(3000)
+    page.screenshot(path="minne_01_login.png")
+
+    # メールアドレス入力
+    try:
+        page.wait_for_selector("input[type='email'], input[type='text']", timeout=8000)
+    except Exception:
+        pass
+    _fill(page, [
+        "input[type='email']",
+        "input[autocomplete='email']",
+        "input[name*='email']",
+        "input[id*='email']",
+        "input[type='text']",
+    ], MINNE_EMAIL)
+    page.wait_for_timeout(500)
+
+    # パスワード入力
+    _fill(page, [
+        "input[type='password']",
+        "input[autocomplete='current-password']",
+        "input[name*='password']",
+        "input[id*='password']",
+    ], MINNE_PASSWORD)
+    page.wait_for_timeout(500)
+    page.screenshot(path="minne_02_filled.png")
+
+    _click(page, [
+        "button[type='submit']",
+        "input[type='submit']",
+        "button:has-text('ログイン')",
+        "button:has-text('サインイン')",
+        "[class*='submit']",
+        "[class*='login']",
+    ])
+    page.wait_for_load_state("networkidle")
+    page.wait_for_timeout(4000)
+    page.screenshot(path="minne_03_after_login.png")
     print(f"[minne] ログイン後URL: {page.url}")
 
+    if "sign_in" in page.url:
+        print("  ※ ログインに失敗した可能性があります。minne_02_filled.png を確認してください")
+
     print("[minne] 商品作成ページへ移動...")
-    page.goto("https://minne.com/items/new", wait_until="domcontentloaded")
-    page.wait_for_timeout(3000)
+    page.goto("https://minne.com/items/new", wait_until="networkidle")
+    page.wait_for_timeout(4000)
+    page.screenshot(path="minne_04_new_item.png")
 
     # 商品名
+    try:
+        page.wait_for_selector("input, textarea", timeout=8000)
+    except Exception:
+        pass
     _fill(page, [
-        "input[name='item[name]']", "#item_name",
-        "input[placeholder*='商品名']", "input[placeholder*='タイトル']",
+        "input[name='item[name]']",
+        "input[id*='name']",
+        "input[placeholder*='商品名']",
+        "input[placeholder*='タイトル']",
+        "input[placeholder*='name']",
     ], product["title"])
-    page.wait_for_timeout(400)
+    page.wait_for_timeout(500)
 
     # 価格
     if product["price"]:
         _fill(page, [
-            "input[name='item[price]']", "#item_price",
-            "input[placeholder*='価格']", "input[type='number']",
+            "input[name='item[price]']",
+            "input[id*='price']",
+            "input[placeholder*='価格']",
+            "input[type='number']",
         ], product["price"])
-        page.wait_for_timeout(400)
+        page.wait_for_timeout(500)
 
     # 説明文
     _fill(page, [
-        "textarea[name='item[description]']", "#item_description",
-        "textarea[placeholder*='説明']", "textarea[placeholder*='商品説明']",
+        "textarea[name='item[description]']",
+        "textarea[id*='description']",
+        "textarea[placeholder*='説明']",
+        "textarea[placeholder*='商品説明']",
+        "textarea",
     ], product["description"])
-    page.wait_for_timeout(400)
+    page.wait_for_timeout(500)
+    page.screenshot(path="minne_05_form_filled.png")
 
     # 画像アップロード
     if local_images:
@@ -171,16 +219,21 @@ def post_to_minne(page, product: dict, local_images: list):
             "input[type='file'][accept*='image']",
             "input[type='file']",
         ])
+        page.wait_for_timeout(3000)
 
     # 下書き保存
     print("[minne] 下書き保存中...")
+    page.screenshot(path="minne_06_before_save.png")
     _click(page, [
         "button:has-text('下書き保存')",
         "a:has-text('下書き保存')",
         "button:has-text('下書き')",
+        "a:has-text('下書き')",
         "button:has-text('保存')",
+        "[class*='draft']",
     ])
-    page.wait_for_timeout(3000)
+    page.wait_for_timeout(4000)
+    page.screenshot(path="minne_07_after_save.png")
     print(f"[minne] 投稿完了 URL: {page.url}")
     return page.url
 
