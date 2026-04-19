@@ -181,12 +181,21 @@ def post_to_minne(page, product: dict, local_images: list):
         "input[type='submit']",
         "button:has-text('ログイン')",
     ])
-    page.wait_for_timeout(6000)  # ログイン後リダイレクトを待つ
+    page.wait_for_timeout(5000)
     page.screenshot(path="minne_04_after_login.png")
     print(f"[minne] ログイン後URL: {page.url}")
 
-    if "sign_in" in page.url or "login" in page.url:
-        print("  ※ ログインに失敗した可能性があります。minne_04_after_login.png を確認してください")
+    # Cloudflare セキュリティ認証が出た場合は手動で対応
+    if "security" in page.url or "captcha" in page.url.lower():
+        print("\n" + "="*50)
+        print("【手動操作が必要です】")
+        print("ブラウザで「私はロボットではありません」に")
+        print("チェックを入れて「ログイン」ボタンを押してください。")
+        print("="*50)
+        input("完了したらここでEnterキーを押してください... ")
+        page.wait_for_timeout(4000)
+        page.screenshot(path="minne_05_after_captcha.png")
+        print(f"[minne] 認証後URL: {page.url}")
 
     print("[minne] 商品作成ページへ移動...")
     try:
