@@ -150,13 +150,15 @@ def post_to_minne(page, product: dict, local_images: list):
     page.wait_for_timeout(2000)
     print(f"[minne] 現在のURL: {page.url}")
 
-    print("[minne] 商品作成ページへ移動...")
-    try:
-        page.goto("https://minne.com/items/new", wait_until="domcontentloaded", timeout=30000)
-    except Exception:
-        pass
-    page.wait_for_timeout(5000)
+    print("\n" + "="*50)
+    print("【出品ページを開いてください】")
+    print("ブラウザで minne の出品フォームを開いてください。")
+    print("（マイページ → 作品を出品する）")
+    print("="*50)
+    input("出品フォームが開いたら、Enterキーを押してください... ")
+    page.wait_for_timeout(2000)
     page.screenshot(path="minne_new_item.png")
+    print(f"[minne] 出品ページURL: {page.url}")
 
     # 商品名
     try:
@@ -233,12 +235,12 @@ def post_to_iichi(page, product: dict, local_images: list):
     input("ログイン完了後、Enterキーを押してください... ")
     page.wait_for_timeout(2000)
 
-    print("[iichi] 商品作成ページへ移動...")
-    try:
-        page.goto("https://www.iichi.com/listing/item/new", wait_until="domcontentloaded", timeout=30000)
-    except Exception:
-        pass
-    page.wait_for_timeout(3000)
+    print("\n" + "="*50)
+    print("【出品ページを開いてください】")
+    print("iichi の出品フォームを開いてください。")
+    print("="*50)
+    input("出品フォームが開いたら、Enterキーを押してください... ")
+    page.wait_for_timeout(2000)
 
     _fill(page, [
         "input[name='title']", "#title",
