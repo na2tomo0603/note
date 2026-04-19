@@ -155,15 +155,8 @@ def post_to_minne(page, context, product: dict, local_images: list):
     page.wait_for_timeout(2000)
 
     if "sign_in" in page.url or "login" in page.url:
-        print("\n" + "="*50)
-        print("【ブラウザでminneにログインしてください】")
-        print("ログイン完了後、このターミナルに戻ってEnterを押してください")
-        print("="*50)
-        input("ログイン完了後、Enterキーを押してください... ")
-        page.wait_for_timeout(2000)
-        # セッションを保存（次回から自動ログイン）
-        context.storage_state(path=MINNE_SESSION)
-        print("✓ セッションを保存しました（次回から自動ログイン）")
+        page.screenshot(path="minne_login_failed.png")
+        raise RuntimeError(f"minneログイン失敗。minne_login_failed.png を確認してください。URL: {page.url}")
     else:
         print("[minne] ログイン済みです")
 
@@ -174,20 +167,19 @@ def post_to_minne(page, context, product: dict, local_images: list):
         try:
             page.goto(url, wait_until="domcontentloaded", timeout=10000)
             page.wait_for_timeout(2000)
+            page.screenshot(path=f"minne_try_{url.split('/')[-1]}.png")
             if page.locator("input, textarea").count() > 2:
                 listing_url = url
                 print(f"[minne] 出品ページ発見: {url}")
                 break
-        except Exception:
+            print(f"  → フォームなし ({page.url})")
+        except Exception as e:
+            print(f"  → エラー: {e}")
             continue
 
     if not listing_url:
-        print("\n" + "="*50)
-        print("【出品フォームを手動で開いてください】")
-        print("ブラウザで「作品を出品する」を開いてEnterを押してください")
-        print("="*50)
-        input("準備できたらEnterキーを押してください... ")
-        page.wait_for_timeout(2000)
+        page.screenshot(path="minne_listing_not_found.png")
+        raise RuntimeError("minne出品ページが見つかりません。minne_listing_not_found.png を確認してください。")
 
     page.screenshot(path="minne_new_item.png")
     print(f"[minne] 出品ページURL: {page.url}")
@@ -286,12 +278,8 @@ def post_to_iichi(page, context, product: dict, local_images: list):
             page.wait_for_timeout(4000)
 
         if "login" in page.url or "signin" in page.url.lower():
-            print("\n" + "="*50)
-            print("【ブラウザでiichiにログインしてください】")
-            print("ログイン完了後、Enterを押してください")
-            print("="*50)
-            input("ログイン完了後、Enterキーを押してください... ")
-            page.wait_for_timeout(2000)
+            page.screenshot(path="iichi_login_failed.png")
+            raise RuntimeError(f"iichiログイン失敗。iichi_login_failed.png を確認してください。URL: {page.url}")
 
         context.storage_state(path=IICHI_SESSION)
         print("✓ セッションを保存しました（次回から自動ログイン）")
@@ -301,24 +289,27 @@ def post_to_iichi(page, context, product: dict, local_images: list):
     # 出品ページへ自動移動
     print("[iichi] 出品ページを探しています...")
     listing_url = None
-    for url in ["https://www.iichi.com/listing/item/new", "https://www.iichi.com/items/new"]:
+    for url in [
+        "https://www.iichi.com/listing/item/new",
+        "https://www.iichi.com/items/new",
+        "https://www.iichi.com/listing/items/new",
+    ]:
         try:
             page.goto(url, wait_until="domcontentloaded", timeout=10000)
             page.wait_for_timeout(2000)
+            page.screenshot(path=f"iichi_try_{url.split('/')[-2]}.png")
             if page.locator("input, textarea").count() > 2:
                 listing_url = url
                 print(f"[iichi] 出品ページ発見: {url}")
                 break
-        except Exception:
+            print(f"  → フォームなし ({page.url})")
+        except Exception as e:
+            print(f"  → エラー: {e}")
             continue
 
     if not listing_url:
-        print("\n" + "="*50)
-        print("【出品フォームを手動で開いてください】")
-        print("ブラウザでiichiの出品フォームを開いてEnterを押してください")
-        print("="*50)
-        input("準備できたらEnterキーを押してください... ")
-        page.wait_for_timeout(2000)
+        page.screenshot(path="iichi_listing_not_found.png")
+        raise RuntimeError("iichi出品ページが見つかりません。iichi_listing_not_found.png を確認してください。")
 
     page.screenshot(path="iichi_new_item.png")
     print(f"[iichi] 出品ページURL: {page.url}")
@@ -426,11 +417,11 @@ def main():
             launch_opts["executable_path"] = chrome_path
         browser = p.chromium.launch(**launch_opts)
 
+        ctx_opts = {"ignore_https_errors": True}
         if os.path.exists(session_file):
-            context = browser.new_context(storage_state=session_file)
+            ctx_opts["storage_state"] = session_file
             print(f"保存済みセッションを使用します ({session_file})")
-        else:
-            context = browser.new_context()
+        context = browser.new_context(**ctx_opts)
 
         page = context.new_page()
 
@@ -464,4 +455,4 @@ if __name__ == "__main__":
         with open("error.log", "w", encoding="utf-8") as f:
             f.write(msg)
         print("error.log に保存しました")
-    input("\nEnterキーで終了...")
+    pass

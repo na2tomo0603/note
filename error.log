@@ -1,0 +1,9 @@
+Traceback (most recent call last):
+  File "/home/user/note/creema_cross_post.py", line 451, in <module>
+    main()
+  File "/home/user/note/creema_cross_post.py", line 439, in main
+    result_url = post_to_iichi(page, context, product, local_images)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/user/note/creema_cross_post.py", line 312, in post_to_iichi
+    raise RuntimeError("iichi出品ページが見つかりません。iichi_listing_not_found.png を確認してください。")
+RuntimeError: iichi出品ページが見つかりません。iichi_listing_not_found.png を確認してください。
