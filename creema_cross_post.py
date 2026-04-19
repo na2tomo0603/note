@@ -132,13 +132,22 @@ def post_to_minne(page, product: dict, local_images: list):
     page.wait_for_timeout(3000)
     page.screenshot(path="minne_01_login.png")
 
-    # GMO IDでログイン ボタンをクリック
-    _click(page, [
-        "a:has-text('GMO ID')",
-        "button:has-text('GMO ID')",
-        "[class*='gmoid']",
-        "[href*='gmo']",
-    ])
+    # GMO IDでログイン ボタンをJavaScriptで検索してクリック
+    clicked = page.evaluate("""
+        () => {
+            const candidates = [...document.querySelectorAll('a, button')];
+            const btn = candidates.find(el =>
+                el.href && (el.href.includes('gmo') || el.href.includes('oauth')) ||
+                el.textContent.includes('GMOID') ||
+                el.textContent.includes('GMO ID') ||
+                el.textContent.includes('GMOIDでログイン') ||
+                (el.className && el.className.toString().toLowerCase().includes('gmo'))
+            );
+            if (btn) { btn.click(); return btn.href || btn.textContent.trim(); }
+            return null;
+        }
+    """)
+    print(f"[minne] GMO IDボタン: {clicked}")
     page.wait_for_load_state("networkidle")
     page.wait_for_timeout(3000)
     page.screenshot(path="minne_02_gmoid.png")
