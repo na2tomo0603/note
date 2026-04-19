@@ -277,9 +277,15 @@ def create_minne_listing(page, item, image_paths):
     print("スクリーンショット: minne_done.png")
 
 
+def safe_input(prompt):
+    if sys.stdin.isatty():
+        return input(prompt).strip()
+    return ""
+
+
 def main():
     if len(sys.argv) < 2:
-        url = input("CreemaのURL: ").strip()
+        url = safe_input("CreemaのURL: ")
     else:
         url = sys.argv[1]
 
@@ -291,18 +297,22 @@ def main():
     password = MINNE_PASSWORD
 
     if not email:
-        email = input("ミンネのメールアドレス: ").strip()
+        email = safe_input("ミンネのメールアドレス: ")
     if not password:
         import getpass
-        password = getpass.getpass("ミンネのパスワード: ")
+        password = getpass.getpass("ミンネのパスワード: ") if sys.stdin.isatty() else ""
 
     from playwright.sync_api import sync_playwright
 
     with sync_playwright() as p:
         print("ブラウザ起動中...")
-        browser = p.chromium.launch(headless=False)
+        browser = p.chromium.launch(
+            headless=False,
+            args=["--no-sandbox", "--disable-setuid-sandbox"],
+        )
         context = browser.new_context(
-            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            ignore_https_errors=True,
         )
         page = context.new_page()
 
@@ -321,7 +331,8 @@ def main():
         # 出品フォーム入力
         create_minne_listing(page, item, image_paths)
 
-        input("\nEnterキーでブラウザを閉じます...")
+        if sys.stdin.isatty():
+            input("\nEnterキーでブラウザを閉じます...")
         browser.close()
 
 
@@ -334,4 +345,5 @@ if __name__ == "__main__":
         with open("error.log", "w", encoding="utf-8") as f:
             f.write(msg)
         print("error.log に保存しました")
-    input("\nEnterキーで終了...")
+    if sys.stdin.isatty():
+        input("\nEnterキーで終了...")
