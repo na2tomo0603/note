@@ -142,47 +142,60 @@ def download_images(image_urls):
 def login_minne(page, email, password):
     """ミンネにログイン"""
     print("ミンネにログイン中...")
-    page.goto("https://minne.com/login", wait_until="domcontentloaded")
-    page.wait_for_timeout(2000)
+    page.goto("https://minne.com/@login", wait_until="domcontentloaded")
+    page.wait_for_timeout(3000)
+    page.screenshot(path="minne_login.png")
+    print("スクリーンショット: minne_login.png")
 
     # メールアドレス入力
-    for sel in ["input[type='email']", "input[name='email']", "input[id*='email']"]:
+    for sel in ["input[type='email']", "input[name='session[email]']", "input[name='email']", "input[id*='email']", "input[id*='Email']"]:
         try:
             page.fill(sel, email, timeout=3000)
+            print(f"  メール入力完了")
             break
         except Exception:
             continue
 
-    page.wait_for_timeout(300)
+    page.wait_for_timeout(500)
 
     # パスワード入力
-    for sel in ["input[type='password']", "input[name='password']"]:
+    for sel in ["input[type='password']", "input[name='session[password]']", "input[name='password']"]:
         try:
             page.fill(sel, password, timeout=3000)
+            print(f"  パスワード入力完了")
             break
         except Exception:
             continue
 
-    page.wait_for_timeout(300)
+    page.wait_for_timeout(500)
+    page.screenshot(path="minne_login_filled.png")
 
     # ログインボタン
-    for sel in ["button[type='submit']", "input[type='submit']", "button:has-text('ログイン')"]:
+    for sel in ["button[type='submit']", "input[type='submit']", "button:has-text('ログイン')", "input[value*='ログイン']"]:
         try:
             page.click(sel, timeout=3000)
+            print(f"  ログインボタンクリック")
             break
         except Exception:
             continue
 
     page.wait_for_load_state("domcontentloaded")
-    page.wait_for_timeout(3000)
+    page.wait_for_timeout(5000)
     print(f"ログイン後URL: {page.url}")
+    page.screenshot(path="minne_after_login.png")
+    print("スクリーンショット: minne_after_login.png")
 
 
 def create_minne_listing(page, item, image_paths):
     """ミンネ新規出品フォームに入力"""
     print("新規出品ページへ移動...")
-    page.goto("https://minne.com/items/new", wait_until="domcontentloaded")
-    page.wait_for_timeout(4000)
+    for new_url in ["https://minne.com/items/new", "https://minne.com/@product/new"]:
+        page.goto(new_url, wait_until="domcontentloaded")
+        page.wait_for_timeout(4000)
+        if "login" not in page.url and "error" not in page.url:
+            break
+    print(f"出品ページURL: {page.url}")
+    page.screenshot(path="minne_new_item.png")
     page.screenshot(path="minne_new_item.png")
     print("スクリーンショット: minne_new_item.png")
 
