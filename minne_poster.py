@@ -36,20 +36,39 @@ def post_product(product_dict: dict, image_paths: list, log=print, headless: boo
 
     # ── ログイン ──
     log("Minneにログイン中...")
-    csrf = _get_csrf(session, "https://minne.com/users/sign_in")
+    login_page = session.get("https://minne.com/users/sign_in", timeout=20)
+    soup = BeautifulSoup(login_page.text, "html.parser")
+
+    # フォームの全hidden inputを収集（CSRF・その他トークン）
+    form = soup.find("form", action=lambda a: a and "sign_in" in a)
+    if not form:
+        form = soup.find("form")
+    form_data = {}
+    if form:
+        for inp in form.find_all("input", {"type": ["hidden", "submit"]}):
+            if inp.get("name"):
+                form_data[inp["name"]] = inp.get("value", "")
+
+    # ログイン情報を追加（フォームのname属性に合わせて両パターン試す）
+    form_data.update({
+        "user[email]": email,
+        "user[password]": password,
+        "email": email,
+        "password": password,
+    })
+    log(f"フォーム送信中 (fields: {list(form_data.keys())})")
+
     r = session.post(
         "https://minne.com/users/sign_in",
-        data={
-            "authenticity_token": csrf,
-            "user[email]": email,
-            "user[password]": password,
-            "commit": "ログイン",
-        },
+        data=form_data,
         allow_redirects=True,
         timeout=30,
+        headers={"Referer": "https://minne.com/users/sign_in",
+                 "Origin": "https://minne.com"},
     )
+    log(f"ログイン後URL: {r.url} (status: {r.status_code})")
     if "sign_in" in r.url or "login" in r.url.lower():
-        raise ValueError("ログイン失敗：メールアドレスまたはパスワードを確認してください")
+        raise ValueError(f"ログイン失敗：メールアドレスまたはパスワードを確認してください (URL: {r.url})")
     log(f"ログイン完了: {r.url}")
 
     # ── 商品登録ページのCSRF取得 ──
