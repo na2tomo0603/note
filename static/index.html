@@ -5,507 +5,493 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="YouTube→note">
-  <meta name="theme-color" content="#41C9B4">
+  <meta name="apple-mobile-web-app-title" content="Creema→Minne">
+  <meta name="theme-color" content="#FF6B9D">
   <link rel="manifest" href="/static/manifest.json">
   <link rel="apple-touch-icon" href="/static/icon-192.png">
-  <title>YouTube → note</title>
+  <title>Creema → Minne</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      --accent: #41C9B4;
-      --accent-dark: #2ba896;
-      --bg: #0f1117;
-      --surface: #1a1d26;
+      --pink:   #FF6B9D;
+      --pink-d: #e0578a;
+      --mint:   #4ECDC4;
+      --bg:     #0f1117;
+      --surface:  #1a1d26;
       --surface2: #23263a;
-      --text: #e8eaf0;
-      --text-muted: #7b8099;
-      --danger: #ff5c5c;
-      --success: #4caf82;
+      --text:   #e8eaf0;
+      --muted:  #7b8099;
+      --green:  #4caf82;
+      --red:    #ff5c5c;
       --radius: 16px;
-      --safe-top: env(safe-area-inset-top, 0px);
+      --safe-top:    env(safe-area-inset-top, 0px);
       --safe-bottom: env(safe-area-inset-bottom, 0px);
     }
 
+    html, body { height: 100%; }
     body {
       font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
       background: var(--bg);
       color: var(--text);
-      min-height: 100dvh;
       padding-top: var(--safe-top);
       padding-bottom: var(--safe-bottom);
+      overscroll-behavior: none;
     }
 
-    /* ── ヘッダー ── */
+    /* ── Header ── */
     header {
       background: var(--surface);
-      padding: 16px 20px 14px;
+      padding: 14px 20px 12px;
       display: flex;
       align-items: center;
       gap: 12px;
       border-bottom: 1px solid #2a2d3d;
       position: sticky;
       top: 0;
-      z-index: 10;
+      z-index: 20;
     }
-    header .logo { font-size: 24px; }
-    header h1 { font-size: 18px; font-weight: 700; letter-spacing: -0.3px; }
-    header span.sub { font-size: 11px; color: var(--text-muted); display: block; margin-top: 1px; }
+    .logo-wrap { display: flex; align-items: center; gap: 6px; font-size: 20px; }
+    .arrow { color: var(--muted); font-size: 14px; }
+    header h1 { font-size: 17px; font-weight: 800; }
+    header small { font-size: 11px; color: var(--muted); display: block; }
 
-    /* ── タブ ── */
-    .tabs {
+    /* ── Tabs ── */
+    nav.tabs {
       display: flex;
       background: var(--surface);
       border-bottom: 1px solid #2a2d3d;
     }
-    .tab-btn {
-      flex: 1;
-      padding: 12px 0;
-      border: none;
-      background: none;
-      color: var(--text-muted);
-      font-size: 13px;
-      font-weight: 600;
-      cursor: pointer;
-      position: relative;
-      transition: color .2s;
-    }
-    .tab-btn.active {
-      color: var(--accent);
-    }
-    .tab-btn.active::after {
-      content: "";
-      position: absolute;
-      bottom: 0; left: 10%; right: 10%;
-      height: 2px;
-      background: var(--accent);
-      border-radius: 2px;
-    }
-
-    /* ── パネル ── */
-    .panel { display: none; padding: 20px 16px; }
-    .panel.active { display: block; }
-
-    /* ── カード ── */
-    .card {
-      background: var(--surface);
-      border-radius: var(--radius);
-      padding: 18px;
-      margin-bottom: 16px;
-    }
-    .card-title {
-      font-size: 13px;
-      font-weight: 700;
-      color: var(--text-muted);
-      text-transform: uppercase;
-      letter-spacing: 0.8px;
-      margin-bottom: 12px;
-    }
-
-    /* ── 入力 ── */
-    .input-wrap { position: relative; }
-    input[type="url"], input[type="text"], textarea {
-      width: 100%;
-      background: var(--surface2);
-      border: 1.5px solid #2a2d3d;
-      border-radius: 12px;
-      padding: 14px 16px;
-      color: var(--text);
-      font-size: 15px;
-      outline: none;
-      transition: border-color .2s;
-      -webkit-appearance: none;
-    }
-    input[type="url"]:focus, input[type="text"]:focus, textarea:focus {
-      border-color: var(--accent);
-    }
-    textarea { resize: vertical; min-height: 160px; font-family: inherit; line-height: 1.6; }
-
-    /* ── ボタン ── */
-    .btn {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-      width: 100%;
-      padding: 16px;
-      border-radius: 14px;
-      border: none;
-      font-size: 16px;
-      font-weight: 700;
-      cursor: pointer;
-      transition: opacity .2s, transform .1s;
+    .tab {
+      flex: 1; padding: 11px 4px; border: none; background: none;
+      color: var(--muted); font-size: 12px; font-weight: 600;
+      cursor: pointer; position: relative; transition: color .2s;
       -webkit-tap-highlight-color: transparent;
     }
-    .btn:active { transform: scale(0.97); opacity: 0.85; }
-    .btn-primary { background: var(--accent); color: #fff; }
-    .btn-secondary { background: var(--surface2); color: var(--text); }
-    .btn-danger { background: var(--danger); color: #fff; }
-    .btn:disabled { opacity: 0.45; pointer-events: none; }
-
-    /* ── プログレス ── */
-    .progress-box {
-      background: var(--surface2);
-      border-radius: 12px;
-      padding: 14px;
-      max-height: 200px;
-      overflow-y: auto;
-      font-size: 12px;
-      font-family: "SF Mono", "Menlo", monospace;
-      color: var(--accent);
-      line-height: 1.8;
-      display: none;
-    }
-    .progress-box.show { display: block; }
-    .progress-line { margin: 0; }
-
-    /* ── バッジ ── */
-    .badge {
-      display: inline-block;
-      font-size: 11px;
-      font-weight: 600;
-      padding: 3px 8px;
-      border-radius: 20px;
-      background: var(--surface2);
-      color: var(--text-muted);
-      margin: 2px;
-    }
-    .badge.green { background: #1a3a2a; color: var(--success); }
-
-    /* ── アーティクルプレビュー ── */
-    .article-title-display {
-      font-size: 20px;
-      font-weight: 800;
-      line-height: 1.3;
-      margin-bottom: 8px;
-    }
-    .tags-wrap { margin-bottom: 14px; }
-    .article-body-display {
-      font-size: 14px;
-      line-height: 1.8;
-      color: #cdd0e0;
-      white-space: pre-wrap;
+    .tab.on { color: var(--pink); }
+    .tab.on::after {
+      content: ""; position: absolute; bottom: 0; left: 15%; right: 15%;
+      height: 2px; background: var(--pink); border-radius: 2px;
     }
 
-    /* ── ステータス ── */
-    .status-msg {
-      font-size: 13px;
-      padding: 10px 14px;
-      border-radius: 10px;
-      margin-top: 12px;
-      display: none;
-    }
-    .status-msg.ok { background: #1a3a2a; color: var(--success); display: block; }
-    .status-msg.err { background: #3a1a1a; color: var(--danger); display: block; }
+    /* ── Panels ── */
+    .panel { display: none; padding: 16px; padding-bottom: 32px; }
+    .panel.on { display: block; }
 
-    /* ── スピナー ── */
-    .spinner {
-      width: 18px; height: 18px;
+    /* ── Step bar ── */
+    .stepbar { display: flex; gap: 6px; margin-bottom: 16px; }
+    .sbar { flex: 1; height: 3px; border-radius: 2px; background: var(--surface2); transition: background .4s; }
+    .sbar.done { background: var(--pink); }
+    .sbar.cur  { background: var(--pink); opacity: .45; }
+
+    /* ── Card ── */
+    .card {
+      background: var(--surface); border-radius: var(--radius);
+      padding: 16px; margin-bottom: 14px;
+    }
+    .label {
+      font-size: 11px; font-weight: 700; color: var(--muted);
+      text-transform: uppercase; letter-spacing: .8px; margin-bottom: 10px;
+    }
+
+    /* ── Inputs ── */
+    input[type="url"], input[type="text"],
+    input[type="email"], input[type="password"],
+    input[type="number"], textarea {
+      width: 100%; background: var(--surface2);
+      border: 1.5px solid #2a2d3d; border-radius: 12px;
+      padding: 13px 14px; color: var(--text); font-size: 15px;
+      outline: none; transition: border-color .2s; -webkit-appearance: none;
+    }
+    input:focus, textarea:focus { border-color: var(--pink); }
+    textarea { resize: vertical; min-height: 120px; font-family: inherit; line-height: 1.6; }
+
+    /* ── Button ── */
+    .btn {
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+      width: 100%; padding: 15px; border-radius: 14px; border: none;
+      font-size: 15px; font-weight: 700; cursor: pointer;
+      transition: opacity .2s, transform .1s; -webkit-tap-highlight-color: transparent;
+    }
+    .btn:active { transform: scale(.97); opacity: .82; }
+    .btn-pink   { background: var(--pink);   color: #fff; }
+    .btn-mint   { background: var(--mint);   color: #fff; }
+    .btn-ghost  { background: var(--surface2); color: var(--text); }
+    .btn:disabled { opacity: .4; pointer-events: none; }
+    .btn + .btn { margin-top: 10px; }
+
+    /* ── Spinner ── */
+    .spin {
+      width: 17px; height: 17px;
       border: 2.5px solid rgba(255,255,255,.3);
-      border-top-color: #fff;
-      border-radius: 50%;
-      animation: spin .7s linear infinite;
-      display: none;
+      border-top-color: #fff; border-radius: 50%;
+      animation: rot .6s linear infinite; display: none;
     }
-    @keyframes spin { to { transform: rotate(360deg); } }
+    @keyframes rot { to { transform: rotate(360deg); } }
 
-    /* ── セパレーター ── */
-    .sep { height: 1px; background: #2a2d3d; margin: 16px 0; }
+    /* ── Progress log ── */
+    .logbox {
+      background: var(--surface2); border-radius: 12px;
+      padding: 12px; max-height: 180px; overflow-y: auto;
+      font-size: 11.5px; font-family: "SF Mono","Menlo",monospace;
+      color: var(--mint); line-height: 1.9; display: none; margin-top: 12px;
+    }
+    .logbox.on { display: block; }
 
-    /* ── ステップインジケーター ── */
-    .steps {
-      display: flex;
-      gap: 6px;
-      margin-bottom: 18px;
+    /* ── Status ── */
+    .status { font-size: 13px; padding: 10px 14px; border-radius: 10px; margin-top: 12px; display: none; }
+    .status.ok  { background: #1a3a2a; color: var(--green); display: block; }
+    .status.err { background: #3a1a1a; color: var(--red);   display: block; }
+
+    /* ── Product preview ── */
+    .prod-imgs {
+      display: flex; gap: 8px; overflow-x: auto;
+      padding-bottom: 6px; margin-bottom: 12px; -webkit-overflow-scrolling: touch;
     }
-    .step {
-      flex: 1;
-      height: 4px;
-      border-radius: 2px;
-      background: var(--surface2);
-      transition: background .3s;
+    .prod-imgs img {
+      width: 80px; height: 80px; object-fit: cover;
+      border-radius: 10px; flex-shrink: 0; border: 1.5px solid #2a2d3d;
     }
-    .step.done { background: var(--accent); }
-    .step.active { background: var(--accent); opacity: 0.5; }
+    .prod-title { font-size: 18px; font-weight: 800; line-height: 1.3; margin-bottom: 6px; }
+    .prod-price { font-size: 22px; font-weight: 900; color: var(--pink); margin-bottom: 8px; }
+    .prod-desc  { font-size: 13px; color: #cdd0e0; line-height: 1.75; white-space: pre-wrap; }
+    .tag { display: inline-block; font-size: 11px; font-weight: 600;
+           padding: 3px 8px; border-radius: 20px; background: #1a1d26;
+           color: var(--muted); border: 1px solid #2a2d3d; margin: 2px; }
+
+    /* ── Sep ── */
+    .sep { height: 1px; background: #2a2d3d; margin: 14px 0; }
+
+    /* ── Info row ── */
+    .info-row { display: flex; justify-content: space-between; align-items: center;
+                font-size: 13px; padding: 6px 0; border-bottom: 1px solid #2a2d3d; }
+    .info-row:last-child { border-bottom: none; }
+    .info-row .k { color: var(--muted); }
+    .info-row .v { font-weight: 600; }
   </style>
 </head>
 <body>
 
 <header>
-  <div class="logo">🎬</div>
+  <div class="logo-wrap">
+    <span>🛍️</span>
+    <span class="arrow">→</span>
+    <span>🧶</span>
+  </div>
   <div>
-    <h1>YouTube → note</h1>
-    <span class="sub">自動記事生成・投稿アプリ</span>
+    <h1>Creema → Minne</h1>
+    <small>商品自動登録アプリ</small>
   </div>
 </header>
 
-<div class="tabs">
-  <button class="tab-btn active" onclick="switchTab('generate')">① 記事生成</button>
-  <button class="tab-btn" onclick="switchTab('edit')">② 編集</button>
-  <button class="tab-btn" onclick="switchTab('post')">③ 投稿</button>
-</div>
+<nav class="tabs">
+  <button class="tab on"  onclick="go('fetch')">① 取得</button>
+  <button class="tab"     onclick="go('edit')">② 編集</button>
+  <button class="tab"     onclick="go('post')">③ 登録</button>
+  <button class="tab"     onclick="go('settings')">設定</button>
+</nav>
 
-<!-- ── ① 記事生成タブ ── -->
-<div id="tab-generate" class="panel active">
-  <div class="steps">
-    <div class="step active" id="step1"></div>
-    <div class="step" id="step2"></div>
-    <div class="step" id="step3"></div>
+<!-- ① 取得 -->
+<div id="p-fetch" class="panel on">
+  <div class="stepbar">
+    <div class="sbar cur" id="s1"></div>
+    <div class="sbar"     id="s2"></div>
+    <div class="sbar"     id="s3"></div>
   </div>
 
   <div class="card">
-    <div class="card-title">YouTube URL</div>
-    <input type="url" id="yt-url" placeholder="https://www.youtube.com/watch?v=..." inputmode="url" autocomplete="off" autocorrect="off" spellcheck="false">
+    <div class="label">Creema 商品URL</div>
+    <input type="url" id="creema-url"
+      placeholder="https://www.creema.jp/item/XXXXXXXX/detail"
+      inputmode="url" autocomplete="off" autocorrect="off" spellcheck="false">
   </div>
 
-  <button class="btn btn-primary" id="btn-generate" onclick="generate()">
-    <span id="gen-spinner" class="spinner"></span>
-    <span id="gen-label">記事を生成する</span>
+  <button class="btn btn-pink" id="btn-fetch" onclick="fetchProduct()">
+    <span class="spin" id="sp-fetch"></span>
+    <span id="lb-fetch">商品情報を取得する</span>
   </button>
 
-  <div id="progress-box" class="progress-box"></div>
-  <div id="gen-status" class="status-msg"></div>
+  <div class="logbox" id="log-fetch"></div>
+  <div class="status" id="st-fetch"></div>
 </div>
 
-<!-- ── ② 編集タブ ── -->
-<div id="tab-edit" class="panel">
+<!-- ② 編集 -->
+<div id="p-edit" class="panel">
   <div class="card">
-    <div class="card-title">タイトル</div>
-    <input type="text" id="edit-title" placeholder="記事タイトル">
+    <div class="label">プレビュー</div>
+    <div class="prod-imgs" id="preview-imgs"></div>
+    <div class="prod-title" id="preview-title">—</div>
+    <div class="prod-price" id="preview-price"></div>
+    <div style="margin-bottom:10px;" id="preview-tags"></div>
+    <div class="prod-desc"  id="preview-desc"></div>
   </div>
 
   <div class="card">
-    <div class="card-title">タグ</div>
-    <input type="text" id="edit-tags" placeholder="副業, 在宅ワーク, ...">
+    <div class="label">タイトル（60文字以内）</div>
+    <input type="text" id="e-title" maxlength="60" placeholder="作品タイトル">
   </div>
-
   <div class="card">
-    <div class="card-title">本文（Markdown）</div>
-    <textarea id="edit-body" placeholder="本文を入力..."></textarea>
+    <div class="label">価格（円）</div>
+    <input type="number" id="e-price" placeholder="1000" inputmode="numeric">
   </div>
-
-  <button class="btn btn-secondary" onclick="saveEdit()">
-    <span id="save-label">変更を保存</span>
-  </button>
-  <div id="edit-status" class="status-msg"></div>
-
-  <div class="sep"></div>
-
   <div class="card">
-    <div class="card-title">プレビュー</div>
-    <div class="article-title-display" id="preview-title">—</div>
-    <div class="tags-wrap" id="preview-tags"></div>
-    <div class="article-body-display" id="preview-body"></div>
+    <div class="label">在庫数</div>
+    <input type="number" id="e-stock" value="1" min="1" inputmode="numeric">
   </div>
+  <div class="card">
+    <div class="label">説明文（1000文字以内）</div>
+    <textarea id="e-desc" maxlength="1000" placeholder="作品の説明を入力..."></textarea>
+  </div>
+
+  <button class="btn btn-ghost" onclick="saveEdit()">変更を保存</button>
+  <div class="status" id="st-edit"></div>
 </div>
 
-<!-- ── ③ 投稿タブ ── -->
-<div id="tab-post" class="panel">
+<!-- ③ 登録 -->
+<div id="p-post" class="panel">
   <div class="card">
-    <div class="card-title">投稿内容の確認</div>
-    <p style="font-size:14px; color:var(--text-muted); line-height:1.7;">
-      <strong id="confirm-title" style="color:var(--text); font-size:16px;">—</strong><br>
-      <span id="confirm-tags" style="font-size:12px;"></span>
-    </p>
-    <div class="sep"></div>
-    <p style="font-size:13px; color:var(--text-muted); line-height:1.6;">
-      note.com にブラウザで自動ログインし、<br>下書き保存します。
-    </p>
+    <div class="label">登録内容の確認</div>
+    <div class="info-row"><span class="k">タイトル</span><span class="v" id="c-title">—</span></div>
+    <div class="info-row"><span class="k">価格</span><span class="v" id="c-price">—</span></div>
+    <div class="info-row"><span class="k">在庫</span><span class="v" id="c-stock">—</span></div>
+    <div class="info-row"><span class="k">画像</span><span class="v" id="c-imgs">—</span></div>
   </div>
 
-  <button class="btn btn-primary" id="btn-post" onclick="postArticle()">
-    <span id="post-spinner" class="spinner"></span>
-    <span id="post-label">note.com に下書き投稿</span>
+  <div class="card">
+    <div class="label">Minneアカウント</div>
+    <input type="email" id="m-email"    placeholder="メールアドレス" style="margin-bottom:8px">
+    <input type="password" id="m-pass" placeholder="パスワード">
+  </div>
+
+  <button class="btn btn-mint" id="btn-post" onclick="postProduct()">
+    <span class="spin" id="sp-post"></span>
+    <span id="lb-post">Minne に下書き登録する</span>
   </button>
 
-  <div id="post-progress-box" class="progress-box" style="margin-top:12px;"></div>
-  <div id="post-status" class="status-msg"></div>
+  <div class="logbox" id="log-post"></div>
+  <div class="status" id="st-post"></div>
+</div>
+
+<!-- 設定 -->
+<div id="p-settings" class="panel">
+  <div class="card">
+    <div class="label">Minne アカウント（保存）</div>
+    <input type="email"    id="s-email" placeholder="メールアドレス" style="margin-bottom:8px">
+    <input type="password" id="s-pass"  placeholder="パスワード">
+  </div>
+  <button class="btn btn-ghost" onclick="saveSettings()">設定を保存</button>
+  <div class="status" id="st-settings"></div>
 </div>
 
 <script>
 const $ = id => document.getElementById(id);
 
-// ── タブ切り替え ──
-function switchTab(name) {
-  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-  $(`tab-${name}`).classList.add('active');
-  const idx = ['generate','edit','post'].indexOf(name);
-  document.querySelectorAll('.tab-btn')[idx].classList.add('active');
-
-  if (name === 'edit' || name === 'post') loadArticle();
+// ── タブ切り替え ──────────────────────────────────────────────
+function go(name) {
+  ['fetch','edit','post','settings'].forEach((n,i) => {
+    $('p-'+n).classList.toggle('on', n === name);
+    document.querySelectorAll('.tab')[i].classList.toggle('on', n === name);
+  });
+  if (name === 'edit' || name === 'post') loadProduct();
 }
 
-// ── 記事生成 ──
-async function generate() {
-  const url = $('yt-url').value.trim();
-  if (!url) { showStatus('gen-status', 'URLを入力してください', false); return; }
+// ── ① 商品取得 ────────────────────────────────────────────────
+async function fetchProduct() {
+  const url = $('creema-url').value.trim();
+  if (!url) { showSt('st-fetch', 'URLを入力してください', false); return; }
 
-  setLoading('btn-generate', 'gen-spinner', 'gen-label', true, '生成中...');
-  $('progress-box').className = 'progress-box show';
-  $('progress-box').innerHTML = '';
-  $('gen-status').className = 'status-msg';
-  $('step1').className = 'step active';
+  setBtn('btn-fetch','sp-fetch','lb-fetch', true, '取得中...');
+  showLog('log-fetch', true);
+  $('st-fetch').className = 'status';
 
-  // 進捗ポーリング
   let polling = true;
-  const poll = async () => {
-    while (polling) {
-      await sleep(1200);
-      try {
-        const r = await fetch('/api/progress');
-        const d = await r.json();
-        $('progress-box').innerHTML = d.logs.map(l => `<p class="progress-line">${esc(l)}</p>`).join('');
-        $('progress-box').scrollTop = $('progress-box').scrollHeight;
-      } catch {}
-    }
-  };
-  poll();
+  startPoll('log-fetch', () => polling);
 
   try {
-    const res = await fetch('/api/process', {
-      method: 'POST',
-      headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({url})
-    });
-    const data = await res.json();
+    const res = await post('/api/scrape', { url });
     polling = false;
 
-    if (data.ok) {
-      $('step1').className = 'step done';
-      $('step2').className = 'step active';
-      showStatus('gen-status', '記事生成完了！「② 編集」タブで確認できます', true);
-      // 編集タブに転送
-      $('edit-title').value = data.title || '';
-      $('edit-tags').value = data.tags || '';
-      $('edit-body').value = data.body || '';
-      updatePreview();
+    if (res.ok) {
+      $('s1').className = 'sbar done';
+      $('s2').className = 'sbar cur';
+      showSt('st-fetch', `取得完了！「② 編集」タブで内容を確認できます`, true);
+      fillEdit(res.product);
     } else {
-      showStatus('gen-status', data.error || 'エラーが発生しました', false);
+      showSt('st-fetch', res.error || 'エラーが発生しました', false);
     }
-  } catch (e) {
+  } catch(e) {
     polling = false;
-    showStatus('gen-status', `通信エラー: ${e.message}`, false);
+    showSt('st-fetch', '通信エラー: ' + e.message, false);
   }
-
-  setLoading('btn-generate', 'gen-spinner', 'gen-label', false, '記事を生成する');
+  setBtn('btn-fetch','sp-fetch','lb-fetch', false, '商品情報を取得する');
 }
 
-// ── 記事ロード ──
-async function loadArticle() {
+// ── 商品データをフォームに反映 ─────────────────────────────────
+function fillEdit(p) {
+  $('e-title').value = p.title || '';
+  $('e-price').value = p.price || '';
+  $('e-stock').value = p.stock || 1;
+  $('e-desc').value  = p.description || '';
+  updatePreview(p);
+}
+
+function updatePreview(p) {
+  p = p || {
+    title: $('e-title').value,
+    price: parseInt($('e-price').value) || 0,
+    description: $('e-desc').value,
+    images: [],
+    tags: [],
+  };
+  $('preview-title').textContent = p.title || '—';
+  $('preview-price').textContent = p.price ? `¥${p.price.toLocaleString()}` : '';
+  $('preview-desc').textContent  = p.description || '';
+  $('preview-tags').innerHTML    = (p.tags||[]).map(t => `<span class="tag">#${esc(t)}</span>`).join('');
+  $('preview-imgs').innerHTML    = (p.images||[]).slice(0,5).map(u =>
+    `<img src="${esc(u)}" loading="lazy" onerror="this.style.display='none'">`
+  ).join('');
+}
+
+['e-title','e-price','e-desc','e-stock'].forEach(id => {
+  $(id).addEventListener('input', () => updatePreview());
+});
+
+// ── 商品データロード ──────────────────────────────────────────
+async function loadProduct() {
   try {
-    const res = await fetch('/api/article');
-    const data = await res.json();
-    if (data.ok) {
-      $('edit-title').value = data.title || '';
-      $('edit-body').value = data.body || '';
-      // タグ行を抽出
-      const tagMatch = data.body.match(/^\*\*タグ:\*\*\s*(.+)/m);
-      $('edit-tags').value = tagMatch ? tagMatch[1].trim() : '';
-      $('confirm-title').textContent = data.title || '—';
-      $('confirm-tags').textContent = tagMatch ? tagMatch[1].trim() : '';
-      updatePreview();
+    const res = await get('/api/product');
+    if (res.ok) {
+      fillEdit(res.product);
+      const p = res.product;
+      $('c-title').textContent = (p.title||'').slice(0,20) + (p.title?.length>20?'…':'');
+      $('c-price').textContent = p.price ? `¥${p.price.toLocaleString()}` : '—';
+      $('c-stock').textContent = p.stock || 1;
+      $('c-imgs').textContent  = `${(p.images||[]).length}枚`;
+      // 設定からアカウント補完
+      const s = await get('/api/settings');
+      if (s.ok && s.settings.email) $('m-email').value = s.settings.email;
     }
   } catch {}
 }
 
-// ── 編集保存 ──
+// ── ② 編集保存 ───────────────────────────────────────────────
 async function saveEdit() {
-  $('save-label').textContent = '保存中...';
   try {
-    const res = await fetch('/api/article', {
-      method: 'PUT',
-      headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({
-        title: $('edit-title').value,
-        tags: $('edit-tags').value,
-        body: $('edit-body').value
-      })
+    const res = await put('/api/product', {
+      title: $('e-title').value,
+      price: parseInt($('e-price').value) || 0,
+      stock: parseInt($('e-stock').value) || 1,
+      description: $('e-desc').value,
     });
-    const data = await res.json();
-    showStatus('edit-status', data.ok ? '保存しました' : data.error, data.ok);
-    updatePreview();
-  } catch (e) {
-    showStatus('edit-status', `エラー: ${e.message}`, false);
+    showSt('st-edit', res.ok ? '保存しました' : res.error, res.ok);
+  } catch(e) {
+    showSt('st-edit', 'エラー: ' + e.message, false);
   }
-  $('save-label').textContent = '変更を保存';
 }
 
-// ── プレビュー更新 ──
-function updatePreview() {
-  $('preview-title').textContent = $('edit-title').value || '—';
-  const tags = $('edit-tags').value.split(/[,、]/).map(t => t.trim()).filter(Boolean);
-  $('preview-tags').innerHTML = tags.map(t => `<span class="badge green">#${t}</span>`).join('');
-  $('preview-body').textContent = $('edit-body').value;
-  $('confirm-title').textContent = $('edit-title').value || '—';
-  $('confirm-tags').textContent = $('edit-tags').value;
-}
+// ── ③ Minne登録 ──────────────────────────────────────────────
+async function postProduct() {
+  const email = $('m-email').value.trim();
+  const pass  = $('m-pass').value.trim();
+  if (!email || !pass) {
+    showSt('st-post', 'メールアドレスとパスワードを入力してください', false);
+    return;
+  }
 
-['edit-title','edit-tags','edit-body'].forEach(id => {
-  $(id).addEventListener('input', updatePreview);
-});
-
-// ── 投稿 ──
-async function postArticle() {
-  setLoading('btn-post', 'post-spinner', 'post-label', true, '投稿中...');
-  $('post-progress-box').className = 'progress-box show';
-  $('post-progress-box').innerHTML = '';
-  $('post-status').className = 'status-msg';
+  setBtn('btn-post','sp-post','lb-post', true, '登録中...');
+  showLog('log-post', true);
+  $('st-post').className = 'status';
 
   let polling = true;
-  const poll = async () => {
-    while (polling) {
-      await sleep(1500);
-      try {
-        const r = await fetch('/api/progress');
-        const d = await r.json();
-        $('post-progress-box').innerHTML = d.logs.map(l => `<p class="progress-line">${esc(l)}</p>`).join('');
-        $('post-progress-box').scrollTop = $('post-progress-box').scrollHeight;
-      } catch {}
-    }
-  };
-  poll();
+  startPoll('log-post', () => polling);
 
   try {
-    const res = await fetch('/api/post', { method: 'POST' });
-    const data = await res.json();
+    const res = await post('/api/post', { email, password: pass });
     polling = false;
-    if (data.ok) {
-      $('step2').className = 'step done';
-      $('step3').className = 'step done';
-      showStatus('post-status', 'note.com に下書き保存しました！', true);
+
+    if (res.ok) {
+      $('s2').className = 'sbar done';
+      $('s3').className = 'sbar done';
+      showSt('st-post', 'Minne に下書き登録しました！', true);
     } else {
-      showStatus('post-status', data.error || '投稿に失敗しました', false);
+      showSt('st-post', res.error || '登録に失敗しました', false);
     }
-  } catch (e) {
+  } catch(e) {
     polling = false;
-    showStatus('post-status', `通信エラー: ${e.message}`, false);
+    showSt('st-post', '通信エラー: ' + e.message, false);
   }
-
-  setLoading('btn-post', 'post-spinner', 'post-label', false, 'note.com に下書き投稿');
+  setBtn('btn-post','sp-post','lb-post', false, 'Minne に下書き登録する');
 }
 
-// ── ユーティリティ ──
-function setLoading(btnId, spinnerId, labelId, on, label) {
-  $(btnId).disabled = on;
-  $(spinnerId).style.display = on ? 'block' : 'none';
-  $(labelId).textContent = label;
+// ── 設定保存 ─────────────────────────────────────────────────
+async function saveSettings() {
+  try {
+    const res = await put('/api/settings', {
+      email:    $('s-email').value.trim(),
+      password: $('s-pass').value.trim(),
+    });
+    showSt('st-settings', res.ok ? '保存しました' : res.error, res.ok);
+  } catch(e) {
+    showSt('st-settings', 'エラー: ' + e.message, false);
+  }
 }
 
-function showStatus(id, msg, ok) {
+// ── 初期化 ───────────────────────────────────────────────────
+async function init() {
+  try {
+    const s = await get('/api/settings');
+    if (s.ok && s.settings.email) {
+      $('s-email').value = s.settings.email;
+      $('m-email').value = s.settings.email;
+    }
+  } catch {}
+}
+init();
+
+// ── Utilities ────────────────────────────────────────────────
+function setBtn(btn, sp, lb, on, label) {
+  $(btn).disabled = on;
+  $(sp).style.display = on ? 'block' : 'none';
+  $(lb).textContent = label;
+}
+function showSt(id, msg, ok) {
   const el = $(id);
   el.textContent = msg;
-  el.className = `status-msg ${ok ? 'ok' : 'err'}`;
+  el.className = 'status ' + (ok ? 'ok' : 'err');
+}
+function showLog(id, on) {
+  $(id).className = 'logbox' + (on ? ' on' : '');
+  $(id).innerHTML = '';
+}
+function appendLog(id, line) {
+  const el = $(id);
+  const p = document.createElement('div');
+  p.textContent = line;
+  el.appendChild(p);
+  el.scrollTop = el.scrollHeight;
+}
+function startPoll(logId, isRunning) {
+  (async () => {
+    while (isRunning()) {
+      await sleep(1200);
+      try {
+        const r = await get('/api/progress');
+        if (r.logs) {
+          $(logId).innerHTML = r.logs.map(l => `<div>${esc(l)}</div>`).join('');
+          $(logId).scrollTop = $(logId).scrollHeight;
+        }
+      } catch {}
+    }
+  })();
 }
 
-function esc(s) {
-  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-}
-
+async function get(url)           { const r = await fetch(url); return r.json(); }
+async function post(url, body)    { const r = await fetch(url, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) }); return r.json(); }
+async function put(url, body)     { const r = await fetch(url, { method:'PUT',  headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) }); return r.json(); }
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
-// PWA Service Worker 登録
+// PWA
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('/static/sw.js').catch(() => {});
 }

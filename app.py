@@ -1,12 +1,10 @@
 #!/usr/bin/env python3
 """
-iPhone対応PWA - YouTube → note.com 自動投稿アプリ
-Flask APIサーバー
+Creema → Minne 自動登録アプリ
+Flask APIサーバー（iPhone対応PWA）
 """
 
 import os
-import re
-import sys
 import json
 import threading
 import traceback
@@ -14,7 +12,7 @@ from flask import Flask, request, jsonify, send_from_directory
 
 app = Flask(__name__, static_folder="static")
 
-# 進捗ログをメモリに保持
+# 進捗ログ
 _progress = []
 _progress_lock = threading.Lock()
 
@@ -22,7 +20,7 @@ _progress_lock = threading.Lock()
 def log(msg):
     print(msg, flush=True)
     with _progress_lock:
-        _progress.append(msg)
+        _progress.append(str(msg))
 
 
 def clear_progress():
@@ -35,123 +33,141 @@ def get_progress():
         return list(_progress)
 
 
-# ─── API エンドポイント ───────────────────────────────────────────────────────
+# ── 静的ファイル ──────────────────────────────────────────────────────────────
 
 @app.route("/")
 def index():
     return send_from_directory("static", "index.html")
 
+@app.route("/static/<path:path>")
+def static_files(path):
+    return send_from_directory("static", path)
 
-@app.route("/api/process", methods=["POST"])
-def process():
-    """YouTube URL → 記事生成 → article_draft.md 保存"""
-    data = request.get_json(force=True)
-    url = (data or {}).get("url", "").strip()
-    if not url:
-        return jsonify({"ok": False, "error": "URLを入力してください"}), 400
 
-    clear_progress()
-
-    try:
-        from youtube_to_note import (
-            get_video_id, get_transcript, get_video_title,
-            format_article_with_claude, make_thumbnail, save_article,
-        )
-
-        log("動画IDを解析中...")
-        video_id = get_video_id(url)
-        log(f"動画ID: {video_id}")
-
-        log("字幕を取得中...")
-        raw_text = get_transcript(video_id)
-        log(f"字幕取得完了: {len(raw_text)}文字")
-
-        log("タイトルを取得中...")
-        video_title = get_video_title(video_id)
-        log(f"タイトル: {video_title}")
-
-        log("Claude APIで記事を生成中...")
-        result = format_article_with_claude(raw_text, video_title)
-        body, title, tags = result if len(result) == 3 else (result[0], video_title, "")
-        log(f"記事生成完了: {len(body)}文字")
-
-        log("サムネイルを生成中...")
-        make_thumbnail(title)
-
-        log("article_draft.md を保存中...")
-        save_article(title, body, tags)
-        log("完了！")
-
-        with open("article_draft.md", encoding="utf-8") as f:
-            draft = f.read()
-
-        return jsonify({"ok": True, "title": title, "tags": tags, "body": body, "draft": draft})
-
-    except SystemExit as e:
-        msg = f"処理中断: {e}"
-        log(msg)
-        return jsonify({"ok": False, "error": msg}), 500
-    except Exception:
-        msg = traceback.format_exc()
-        log(msg)
-        return jsonify({"ok": False, "error": msg}), 500
-
+# ── API ──────────────────────────────────────────────────────────────────────
 
 @app.route("/api/progress")
 def progress():
-    """現在の進捗ログを返す"""
     return jsonify({"logs": get_progress()})
 
 
-@app.route("/api/article")
-def get_article():
-    """article_draft.md を返す"""
-    try:
-        with open("article_draft.md", encoding="utf-8") as f:
-            content = f.read()
-        lines = content.split("\n")
-        title = lines[0].lstrip("# ").strip() if lines else ""
-        body = "\n".join(lines[1:]).strip()
-        return jsonify({"ok": True, "title": title, "body": body, "raw": content})
-    except FileNotFoundError:
-        return jsonify({"ok": False, "error": "article_draft.md が見つかりません"})
-
-
-@app.route("/api/article", methods=["PUT"])
-def update_article():
-    """記事を編集して保存"""
+@app.route("/api/scrape", methods=["POST"])
+def scrape():
+    """Creema URLから商品情報を取得"""
     data = request.get_json(force=True) or {}
-    title = data.get("title", "下書き")
-    body = data.get("body", "")
-    tags = data.get("tags", "")
+    url = data.get("url", "").strip()
+    if not url:
+        return jsonify({"ok": False, "error": "URLを入力してください"}), 400
+    if "creema.jp" not in url:
+        return jsonify({"ok": False, "error": "CreemaのURLを入力してください"}), 400
 
-    from youtube_to_note import save_article
-    save_article(title, body, tags)
-    return jsonify({"ok": True})
-
-
-@app.route("/api/post", methods=["POST"])
-def post_article():
-    """note.com に下書き投稿"""
     clear_progress()
     try:
-        import subprocess
-        result = subprocess.run(
-            [sys.executable, "post_to_note.py"],
-            capture_output=True, text=True, timeout=120
-        )
-        output = result.stdout + result.stderr
-        for line in output.splitlines():
-            log(line)
+        from creema_scraper import scrape as do_scrape, download_images
+        product = do_scrape(url, log=log)
+        log("画像をダウンロード中...")
+        img_paths = download_images(product, save_dir="tmp_images", log=log)
+        log(f"画像ダウンロード完了: {len(img_paths)}枚")
 
-        if result.returncode == 0:
-            return jsonify({"ok": True, "output": output})
-        else:
-            return jsonify({"ok": False, "error": output}), 500
+        result = product.to_dict()
+        result["image_paths"] = img_paths
+
+        # セッション保存
+        with open("product_cache.json", "w", encoding="utf-8") as f:
+            json.dump(result, f, ensure_ascii=False, indent=2)
+
+        log("取得完了！")
+        return jsonify({"ok": True, "product": result})
+
     except Exception:
         msg = traceback.format_exc()
         log(msg)
         return jsonify({"ok": False, "error": msg}), 500
+
+
+@app.route("/api/product", methods=["GET"])
+def get_product():
+    """キャッシュされた商品情報を返す"""
+    try:
+        with open("product_cache.json", encoding="utf-8") as f:
+            data = json.load(f)
+        return jsonify({"ok": True, "product": data})
+    except FileNotFoundError:
+        return jsonify({"ok": False, "error": "商品情報がありません"})
+
+
+@app.route("/api/product", methods=["PUT"])
+def update_product():
+    """商品情報を編集して保存"""
+    data = request.get_json(force=True) or {}
+    try:
+        with open("product_cache.json", encoding="utf-8") as f:
+            existing = json.load(f)
+        existing.update({k: v for k, v in data.items() if k != "image_paths"})
+        with open("product_cache.json", "w", encoding="utf-8") as f:
+            json.dump(existing, f, ensure_ascii=False, indent=2)
+        return jsonify({"ok": True})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+
+@app.route("/api/post", methods=["POST"])
+def post():
+    """Minneに商品を登録する"""
+    data = request.get_json(force=True) or {}
+    clear_progress()
+
+    try:
+        with open("product_cache.json", encoding="utf-8") as f:
+            product = json.load(f)
+    except FileNotFoundError:
+        return jsonify({"ok": False, "error": "先にCreemaから商品を取得してください"}), 400
+
+    # 認証情報をマージ
+    product["_minne_email"]    = data.get("email", "")
+    product["_minne_password"] = data.get("password", "")
+
+    image_paths = product.get("image_paths", [])
+
+    try:
+        from minne_poster import post_product
+        result_url = post_product(product, image_paths, log=log, headless=True)
+        log(f"Minne登録完了: {result_url}")
+        return jsonify({"ok": True, "url": result_url})
+    except Exception:
+        msg = traceback.format_exc()
+        log(msg)
+        return jsonify({"ok": False, "error": msg}), 500
+
+
+@app.route("/api/settings", methods=["GET"])
+def get_settings():
+    """保存済み設定を返す（パスワードは除く）"""
+    try:
+        with open("settings.json", encoding="utf-8") as f:
+            s = json.load(f)
+        s.pop("password", None)
+        return jsonify({"ok": True, "settings": s})
+    except FileNotFoundError:
+        return jsonify({"ok": True, "settings": {}})
+
+
+@app.route("/api/settings", methods=["PUT"])
+def save_settings():
+    """メールアドレス等を保存"""
+    data = request.get_json(force=True) or {}
+    try:
+        try:
+            with open("settings.json", encoding="utf-8") as f:
+                existing = json.load(f)
+        except FileNotFoundError:
+            existing = {}
+        existing.update(data)
+        with open("settings.json", "w", encoding="utf-8") as f:
+            json.dump(existing, f, ensure_ascii=False, indent=2)
+        return jsonify({"ok": True})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
 
 
 if __name__ == "__main__":
