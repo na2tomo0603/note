@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: note
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt && playwright install chromium --with-deps
+    startCommand: python app.py
+    envVars:
+      - key: PLAYWRIGHT_BROWSERS_PATH
+        value: /opt/render/project/src/.playwright-browsers
+      - key: PYTHON_VERSION
+        value: "3.11"

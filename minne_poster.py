@@ -7,6 +7,10 @@ PlaywrightでMinneに商品を下書き登録する
 import os
 import time
 
+# Render.com でのブラウザパス
+_browser_path = os.environ.get("PLAYWRIGHT_BROWSERS_PATH")
+if _browser_path:
+    os.environ["PLAYWRIGHT_BROWSERS_PATH"] = _browser_path
 
 MINNE_EMAIL    = os.environ.get("MINNE_EMAIL", "")
 MINNE_PASSWORD = os.environ.get("MINNE_PASSWORD", "")
