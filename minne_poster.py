@@ -34,42 +34,64 @@ def post_product(product_dict: dict, image_paths: list, log=print, headless: boo
     session = requests.Session()
     session.headers.update({"User-Agent": UA, "Accept-Language": "ja,en;q=0.9"})
 
-    # ── ログイン ──
+    # ── ログイン（JSON API） ──
     log("Minneにログイン中...")
-    login_page = session.get("https://minne.com/users/sign_in", timeout=20)
-    soup = BeautifulSoup(login_page.text, "html.parser")
-
-    # フォームの全hidden inputを収集（CSRF・その他トークン）
-    form = soup.find("form", action=lambda a: a and "sign_in" in a)
-    if not form:
-        form = soup.find("form")
-    form_data = {}
-    if form:
-        for inp in form.find_all("input", {"type": ["hidden", "submit"]}):
-            if inp.get("name"):
-                form_data[inp["name"]] = inp.get("value", "")
-
-    # ログイン情報を追加（フォームのname属性に合わせて両パターン試す）
-    form_data.update({
-        "user[email]": email,
-        "user[password]": password,
-        "email": email,
-        "password": password,
+    session.headers.update({
+        "Accept": "application/json, text/plain, */*",
+        "Content-Type": "application/json",
+        "Origin": "https://minne.com",
+        "Referer": "https://minne.com/users/sign_in",
+        "X-Requested-With": "XMLHttpRequest",
     })
-    log(f"フォーム送信中 (fields: {list(form_data.keys())})")
 
+    # まずCSRFトークンを取得
+    hp = session.get("https://minne.com/users/sign_in", timeout=20,
+                     headers={"Accept": "text/html"})
+    soup = BeautifulSoup(hp.text, "html.parser")
+    csrf_meta = soup.find("meta", {"name": "csrf-token"})
+    csrf = csrf_meta["content"] if csrf_meta else ""
+    if csrf:
+        session.headers["X-CSRF-Token"] = csrf
+    log(f"CSRFトークン取得: {'ok' if csrf else 'なし'}")
+
+    # JSON APIでログイン試行
+    import json as _json
     r = session.post(
-        "https://minne.com/users/sign_in",
-        data=form_data,
-        allow_redirects=True,
+        "https://minne.com/api/v1/auth/sign_in",
+        data=_json.dumps({"email": email, "password": password}),
         timeout=30,
-        headers={"Referer": "https://minne.com/users/sign_in",
-                 "Origin": "https://minne.com"},
     )
-    log(f"ログイン後URL: {r.url} (status: {r.status_code})")
-    if "sign_in" in r.url or "login" in r.url.lower():
-        raise ValueError(f"ログイン失敗：メールアドレスまたはパスワードを確認してください (URL: {r.url})")
-    log(f"ログイン完了: {r.url}")
+    log(f"API login status: {r.status_code}")
+    if r.status_code == 200:
+        try:
+            token = r.json().get("token") or r.json().get("access_token", "")
+            if token:
+                session.headers["Authorization"] = f"Bearer {token}"
+        except Exception:
+            pass
+        log("ログイン完了（API）")
+    else:
+        # フォームログインにフォールバック
+        session.headers.pop("Content-Type", None)
+        session.headers["Accept"] = "text/html,application/xhtml+xml"
+        r = session.post(
+            "https://minne.com/users/sign_in",
+            data={
+                "authenticity_token": csrf,
+                "user[email]": email,
+                "user[password]": password,
+            },
+            allow_redirects=True,
+            timeout=30,
+        )
+        log(f"フォームログイン後URL: {r.url}")
+        if "sign_in" in r.url:
+            raise ValueError(
+                f"ログイン失敗。メール: {email} / URL: {r.url}\n"
+                "MinneアカウントのメールアドレスとパスワードをRenderの環境変数"
+                "(MINNE_EMAIL / MINNE_PASSWORD)に設定してください。"
+            )
+    log(f"ログイン完了: {r.url if hasattr(r, 'url') else 'ok'}")
 
     # ── 商品登録ページのCSRF取得 ──
     log("商品登録ページを開いています...")
