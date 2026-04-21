@@ -1,13 +1,8 @@
 #!/usr/bin/env python3
-"""
-Creema 商品ページスクレイパー
-PlaywrightでCreemaの商品情報を取得する
-"""
+"""Creema 商品ページスクレイパー（requests + BeautifulSoup）"""
 
 import re
-import json
 import os
-import time
 import urllib.request
 from dataclasses import dataclass, field
 from typing import List
@@ -37,141 +32,95 @@ class CreemaProduct:
         }
 
 
+HEADERS = {
+    "User-Agent": (
+        "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) "
+        "AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1"
+    ),
+    "Accept-Language": "ja,en;q=0.9",
+}
+
+
 def scrape(url: str, log=print) -> CreemaProduct:
-    """CreemaのURLから商品情報を取得する"""
-    from playwright.sync_api import sync_playwright
+    import requests
+    from bs4 import BeautifulSoup
 
     product = CreemaProduct(url=url)
+    log(f"Creemaページを取得中: {url}")
 
-    with sync_playwright() as p:
-        log("ブラウザ起動中...")
-        browser = p.chromium.launch(headless=True)
-        page = browser.new_page(
-            user_agent=(
-                "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) "
-                "AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1"
-            )
-        )
+    r = requests.get(url, headers=HEADERS, timeout=20)
+    r.raise_for_status()
+    soup = BeautifulSoup(r.text, "html.parser")
+    log("ページ取得完了")
 
-        log(f"Creemaページ読み込み中: {url}")
-        page.goto(url, wait_until="domcontentloaded", timeout=30000)
-        page.wait_for_timeout(2000)
+    # タイトル
+    for sel in ["h1.item-name", "h1[class*='title']", "h1"]:
+        el = soup.select_one(sel)
+        if el and el.get_text(strip=True):
+            product.title = el.get_text(strip=True)
+            break
+    log(f"タイトル: {product.title}")
 
-        # ── タイトル ──
-        for sel in [
-            "h1.item-name",
-            "h1[class*='item']",
-            "h1[class*='title']",
-            "h1",
-        ]:
-            try:
-                el = page.locator(sel).first
-                if el.count() > 0:
-                    product.title = el.inner_text().strip()
-                    if product.title:
-                        log(f"タイトル: {product.title}")
-                        break
-            except Exception:
-                pass
+    # 価格
+    for sel in ["[class*='price']", ".price", "span[class*='Price']"]:
+        el = soup.select_one(sel)
+        if el:
+            nums = re.findall(r"[\d,]+", el.get_text())
+            if nums:
+                product.price = int(nums[0].replace(",", ""))
+                break
+    log(f"価格: ¥{product.price:,}")
 
-        # ── 価格 ──
-        for sel in [
-            "[class*='price']",
-            "[class*='Price']",
-            "span.price",
-        ]:
-            try:
-                el = page.locator(sel).first
-                if el.count() > 0:
-                    text = el.inner_text()
-                    nums = re.findall(r"[\d,]+", text)
-                    if nums:
-                        product.price = int(nums[0].replace(",", ""))
-                        log(f"価格: ¥{product.price}")
-                        break
-            except Exception:
-                pass
+    # 説明文
+    for sel in ["[class*='description']", "[class*='detail']", ".item-detail"]:
+        el = soup.select_one(sel)
+        if el and len(el.get_text(strip=True)) > 10:
+            product.description = el.get_text(separator="\n", strip=True)
+            break
+    log(f"説明文: {len(product.description)}文字")
 
-        # ── 説明文 ──
-        for sel in [
-            "[class*='description']",
-            "[class*='Description']",
-            "[class*='detail']",
-            ".item-detail",
-            "p.description",
-        ]:
-            try:
-                el = page.locator(sel).first
-                if el.count() > 0:
-                    text = el.inner_text().strip()
-                    if len(text) > 10:
-                        product.description = text
-                        log(f"説明文: {len(text)}文字")
-                        break
-            except Exception:
-                pass
+    # 画像URL
+    seen = set()
+    for img in soup.find_all("img"):
+        src = img.get("src") or img.get("data-src") or ""
+        if any(k in src for k in ["/uploads/", "/products/", "creema"]):
+            large = re.sub(r"_\d+x\d+\.", "_1000x1000.", src)
+            if large not in seen:
+                product.images.append(large)
+                seen.add(large)
+        if len(product.images) >= 10:
+            break
+    log(f"画像: {len(product.images)}枚")
 
-        # ── 画像URL ──
-        try:
-            imgs = page.locator("img[src*='creema']").all()
-            seen = set()
-            for img in imgs:
-                src = img.get_attribute("src") or ""
-                # サムネより大きい画像を優先
-                if any(k in src for k in ["/uploads/", "/products/"]) and src not in seen:
-                    # 大きいサイズのURLに変換を試みる
-                    large = re.sub(r"_\d+x\d+\.", "_1000x1000.", src)
-                    product.images.append(large)
-                    seen.add(src)
-                if len(product.images) >= 10:
-                    break
-            log(f"画像: {len(product.images)}枚")
-        except Exception as e:
-            log(f"画像取得エラー: {e}")
+    # カテゴリ
+    breadcrumbs = soup.select("[class*='breadcrumb'] a, nav a")
+    if breadcrumbs:
+        product.category = breadcrumbs[-1].get_text(strip=True)
 
-        # ── カテゴリ ──
-        for sel in [
-            "[class*='category']",
-            "[class*='breadcrumb'] a",
-            "nav a",
-        ]:
-            try:
-                items = page.locator(sel).all()
-                cats = [el.inner_text().strip() for el in items if el.inner_text().strip()]
-                if cats:
-                    product.category = cats[-1]
-                    log(f"カテゴリ: {product.category}")
-                    break
-            except Exception:
-                pass
+    # タグ
+    for sel in ["a[href*='/tags/']", "[class*='tag'] a"]:
+        tags = [t.get_text(strip=True) for t in soup.select(sel)]
+        if tags:
+            product.tags = tags[:10]
+            break
 
-        # ── タグ ──
-        for sel in ["[class*='tag'] a", "[class*='Tag'] a", "a[href*='/tags/']"]:
-            try:
-                items = page.locator(sel).all()
-                product.tags = [el.inner_text().strip() for el in items[:10]]
-                if product.tags:
-                    log(f"タグ: {product.tags}")
-                    break
-            except Exception:
-                pass
-
-        browser.close()
-
+    log("取得完了")
     return product
 
 
 def download_images(product: CreemaProduct, save_dir: str = "tmp_images", log=print) -> List[str]:
-    """商品画像をローカルに保存し、ファイルパスのリストを返す"""
+    import requests
     os.makedirs(save_dir, exist_ok=True)
     paths = []
     for i, url in enumerate(product.images):
-        ext = "jpg" if ".jpg" in url.lower() else "png"
+        ext = "jpg" if ".jpg" in url.lower() or "jpeg" in url.lower() else "png"
         path = os.path.join(save_dir, f"product_{i+1}.{ext}")
         try:
-            urllib.request.urlretrieve(url, path)
+            r = requests.get(url, headers=HEADERS, timeout=15)
+            with open(path, "wb") as f:
+                f.write(r.content)
             paths.append(path)
             log(f"画像保存: {path}")
         except Exception as e:
-            log(f"画像{i+1}のダウンロード失敗: {e}")
+            log(f"画像{i+1}のDL失敗: {e}")
     return paths
