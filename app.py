@@ -123,9 +123,14 @@ def post():
     except FileNotFoundError:
         return jsonify({"ok": False, "error": "先にCreemaから商品を取得してください"}), 400
 
-    # 認証情報をマージ
-    product["_minne_email"]    = data.get("email", "")
-    product["_minne_password"] = data.get("password", "")
+    # 認証情報をマージ（リクエストになければ保存済み設定から読む）
+    try:
+        with open("settings.json", encoding="utf-8") as f:
+            saved = json.load(f)
+    except FileNotFoundError:
+        saved = {}
+    product["_minne_email"]    = data.get("email", "")    or saved.get("email", "")
+    product["_minne_password"] = data.get("password", "") or saved.get("password", "")
 
     image_paths = product.get("image_paths", [])
 
