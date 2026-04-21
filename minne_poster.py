@@ -3,7 +3,6 @@
 
 import os
 import re
-import json
 import requests
 from bs4 import BeautifulSoup
 
@@ -16,7 +15,6 @@ UA = ("Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) "
 
 def _login(session: requests.Session, email: str, password: str, log=print) -> bool:
     """Minneにログインしてセッションを確立する。成功するとTrueを返す。"""
-    # Step1: ログインページを取得してCSRFとクッキーを確保
     log("ログインページを取得中...")
     r = session.get(
         "https://minne.com/users/sign_in",
@@ -25,32 +23,42 @@ def _login(session: requests.Session, email: str, password: str, log=print) -> b
     )
     soup = BeautifulSoup(r.text, "html.parser")
 
-    # フォーム内の全hidden inputを収集
+    # ページタイトルでブロックを検出
+    title_tag = soup.find("title")
+    title = title_tag.get_text() if title_tag else ""
+    log(f"ページタイトル: {title}")
+
+    # フォーム内の全inputを収集
     form = soup.find("form", action=re.compile(r"sign_in", re.I))
     if not form:
         form = soup.find("form")
 
     form_fields = {}
     if form:
+        action = form.get("action", "")
+        log(f"フォームaction: {action}")
         for inp in form.find_all("input"):
             name = inp.get("name", "")
             val  = inp.get("value", "")
             if name:
                 form_fields[name] = val
+    else:
+        log("警告: フォームが見つかりません（bot検知の可能性）")
+
     log(f"フォームフィールド: {list(form_fields.keys())}")
 
     # メタタグからCSRFを補完
     meta = soup.find("meta", {"name": "csrf-token"})
     if meta and meta.get("content"):
         form_fields["authenticity_token"] = meta["content"]
+        log("CSRFトークン: 取得済み")
+    else:
+        log("警告: CSRFトークンが見つかりません")
 
-    # メールアドレスとパスワードをセット（Deviseの標準フィールド名）
     form_fields["user[email]"]    = email
     form_fields["user[password]"] = password
-    # コミットボタン値
     form_fields.setdefault("commit", "ログイン")
 
-    # Step2: フォームPOST
     log("ログイン送信中...")
     r2 = session.post(
         "https://minne.com/users/sign_in",
@@ -64,60 +72,36 @@ def _login(session: requests.Session, email: str, password: str, log=print) -> b
         allow_redirects=True,
         timeout=30,
     )
-    log(f"ログイン後URL: {r2.url} (HTTP {r2.status_code})")
+    log(f"ログイン後URL: {r2.url}")
+    log(f"HTTPステータス: {r2.status_code}")
+
+    # ページ内容でログイン結果を判定
+    soup2 = BeautifulSoup(r2.text, "html.parser")
+    title2_tag = soup2.find("title")
+    title2 = title2_tag.get_text() if title2_tag else ""
+    log(f"遷移後ページ: {title2}")
+
+    # エラーメッセージを確認
+    alert = soup2.find(class_=re.compile(r"alert|error|flash", re.I))
+    if alert:
+        log(f"ページエラー: {alert.get_text(strip=True)[:100]}")
+
+    # 2段階認証ページかチェック
+    page_text = r2.text.lower()
+    if "two_factor" in r2.url or "otp" in r2.url or "二段階" in r2.text or "認証コード" in r2.text:
+        log("→ 二段階認証ページに遷移しました")
+        raise ValueError(
+            "Minneの二段階認証が有効です。\n"
+            "Minne設定 → セキュリティ → 二段階認証を一時的に無効にしてから再度お試しください。"
+        )
 
     # sign_inページに戻ってきたら失敗
     if "sign_in" in r2.url:
-        # Step3: JSON API でリトライ
-        log("フォームログイン失敗。JSON APIを試行中...")
-        csrf = form_fields.get("authenticity_token", "")
-        r3 = session.post(
-            "https://minne.com/api/v2/sign_in",
-            json={"email": email, "password": password},
-            headers={
-                "Accept": "application/json",
-                "Content-Type": "application/json",
-                "X-CSRF-Token": csrf,
-                "Origin": "https://minne.com",
-                "Referer": "https://minne.com/users/sign_in",
-            },
-            timeout=30,
-        )
-        log(f"JSON API レスポンス: {r3.status_code}")
-        if r3.status_code == 200:
-            try:
-                token = r3.json().get("token") or r3.json().get("access_token", "")
-                if token:
-                    session.headers["Authorization"] = f"Bearer {token}"
-                    log("JWT認証成功")
-                    return True
-            except Exception:
-                pass
-
-        # Step4: /api/v1 でリトライ
-        r4 = session.post(
-            "https://minne.com/api/v1/auth/sign_in",
-            json={"email": email, "password": password},
-            headers={
-                "Accept": "application/json",
-                "Content-Type": "application/json",
-                "Origin": "https://minne.com",
-                "Referer": "https://minne.com/users/sign_in",
-            },
-            timeout=30,
-        )
-        log(f"API v1 レスポンス: {r4.status_code}")
-        if r4.status_code == 200:
-            try:
-                token = r4.json().get("token") or r4.json().get("access_token", "")
-                if token:
-                    session.headers["Authorization"] = f"Bearer {token}"
-                    return True
-            except Exception:
-                pass
-
+        log("→ ログインページに戻りました（認証失敗）")
         return False
 
+    # ログイン成功確認（マイページ等に遷移しているか）
+    log("→ ログイン成功")
     return True
 
 
@@ -148,8 +132,7 @@ def post_product(product_dict: dict, image_paths: list, log=print, headless: boo
             "Minneログイン失敗。\n"
             "・メールアドレスとパスワードが正しいか確認してください\n"
             f"・入力メール: {email}\n"
-            "・MinneはSNSログイン（Google/Apple/LINE）のみの場合、"
-            "メール+パスワードでのログインができません"
+            "・パスワードを忘れた場合はminne.comで再設定してください"
         )
     log("ログイン完了")
 
