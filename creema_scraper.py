@@ -79,17 +79,65 @@ def scrape(url: str, log=print) -> CreemaProduct:
             break
     log(f"説明文: {len(product.description)}文字")
 
-    # 画像URL
+    # 画像URL — 複数の戦略で取得
     seen = set()
-    for img in soup.find_all("img"):
-        src = img.get("src") or img.get("data-src") or ""
-        if any(k in src for k in ["/uploads/", "/products/", "creema"]):
-            large = re.sub(r"_\d+x\d+\.", "_1000x1000.", src)
-            if large not in seen:
-                product.images.append(large)
-                seen.add(large)
-        if len(product.images) >= 10:
-            break
+
+    def _add(url_str):
+        url_str = url_str.strip()
+        if not url_str or url_str in seen:
+            return
+        # サムネイルURLを高解像度に変換
+        url_str = re.sub(r"/w\d+/", "/w1000/", url_str)
+        url_str = re.sub(r"_\d+x\d+(\.\w+)$", r"_1000x1000\1", url_str)
+        seen.add(url_str)
+        product.images.append(url_str)
+
+    # 戦略1: JSON-LDの構造化データ（最も信頼性が高い）
+    import json as _json
+    for script in soup.find_all("script", {"type": "application/ld+json"}):
+        try:
+            ld = _json.loads(script.string or "")
+            imgs = ld.get("image", [])
+            if isinstance(imgs, str):
+                imgs = [imgs]
+            for img_url in imgs:
+                if isinstance(img_url, dict):
+                    img_url = img_url.get("url", "")
+                _add(img_url)
+        except Exception:
+            pass
+
+    # 戦略2: OGPメタタグ
+    if not product.images:
+        for meta in soup.find_all("meta", property="og:image"):
+            _add(meta.get("content", ""))
+        for meta in soup.find_all("meta", {"name": "twitter:image"}):
+            _add(meta.get("content", ""))
+
+    # 戦略3: Creema特有のdata属性・スライダー要素
+    if not product.images:
+        for el in soup.select("[data-image-url], [data-src], [data-lazy]"):
+            for attr in ("data-image-url", "data-src", "data-lazy"):
+                val = el.get(attr, "")
+                if val and ("creema" in val or "img." in val or "/file_items/" in val):
+                    _add(val)
+
+    # 戦略4: imgタグのsrc（Creema CDNのURLのみ、小さいアイコン除外）
+    if not product.images:
+        for img in soup.find_all("img"):
+            src = img.get("src") or img.get("data-src") or ""
+            if not src:
+                continue
+            # Creema CDN画像のみ（ロゴ・アイコン除外）
+            if re.search(r"(img\.creema\.jp|creema\.jp/file_items)", src):
+                # 幅が小さいサムネイルを除外
+                w = img.get("width", "")
+                if w and int(w) < 100:
+                    continue
+                _add(src)
+            if len(product.images) >= 10:
+                break
+
     log(f"画像: {len(product.images)}枚")
 
     # カテゴリ
